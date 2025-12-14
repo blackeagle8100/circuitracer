@@ -1,0 +1,669 @@
+  <!DOCTYPE html>
+  <html lang="nl">
+  <head>
+  <meta charset="UTF-8">
+  <title>Carrera Simulator</title>
+  <style>
+  body { margin:0; background:#111; color:white; font-family:monospace; display:flex; flex-direction:column; align-items:center;}
+  canvas { margin-top:10px; border:6px solid red; background:#2a2a2a; image-rendering: pixelated; }
+
+  .minigamePanel{
+  position:absolute;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  background:rgba(0,0,0,0.6);
+  border:3px solid white;
+  padding:6px;
+}
+  </style>
+  </head>
+  <body>
+
+  <h2>Carrera Track Simulator</h2>
+  <div style="margin-bottom:8px">
+    Laps:
+    <input id="lapInput" type="number" value="3" min="1" style="width:50px">
+  </div>
+
+  <div id="hud" style="font-size:14px; margin-bottom:6px"></div>
+
+
+  <div id="minigameOverlay" style="
+  position:absolute;
+  top:0; left:0;
+  pointer-events:none;
+  display:none;
+  z-index:20;
+">
+
+    <!-- Minigame P1 -->
+    <div id="panelP1" class="minigamePanel">
+      <div style="color:white; font-size:24px; margin-bottom:5px;">Player 1</div>
+      <canvas id="minigameCanvas1" width="300" height="150" style="border:3px solid white; background:#222;"></canvas>
+      <div style="color:white; font-size:20px;" id="minigameStatus1">Balanceren: 5.0s</div>
+    </div>
+
+    <!-- Minigame P2 -->
+    <div id="panelP2" class="minigamePanel">
+      <div style="color:white; font-size:24px; margin-bottom:5px;">Player 2</div>
+      <canvas id="minigameCanvas2" width="300" height="150" style="border:3px solid white; background:#222;"></canvas>
+      <div style="color:white; font-size:20px;" id="minigameStatus2">Balanceren: 5.0s</div>
+    </div>
+  </div>
+
+
+  <canvas id="game"></canvas>
+
+
+
+  <div id="overlay" style="
+    position:absolute;
+    top:0; left:0; right:0; bottom:0;
+    background:rgba(0,0,0,0.8);
+    color:white;
+    font-size:48px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    z-index:10;
+    display:none;
+    z-index:30;
+    gap:20px;
+  ">
+    <span id="winnerText">WINNER</span>
+    <button id="newGameBtn" style="
+      font-size:24px;
+      padding:10px 20px;
+      cursor:pointer;
+    ">NEW GAME</button>
+  </div>
+
+
+
+
+  <script>
+
+
+    // Minigame instellingen
+  // === MINIGAME SETTINGS ===
+  // === MINIGAME SETTINGS ===
+  const BALANCE_DURATION = 5; // seconden dat de speler moet balanceren
+  const PLANK_LENGTH = 300;   // pixels
+  const MAX_ANGLE = 45;       // max kanteling
+  const BALANCE_ZONE = 10;    // px rond midden waar het groen is
+  const GRAVITY = 900;        // pixels/sec^2
+
+
+  // key mapping
+  const minigameKeys = {
+    P1: { left: "a", right: "e" },
+    P2: { left: "u", right: "o" }
+  };
+
+  const minigameOverlay = document.getElementById("minigameOverlay");
+
+  const mgCanvases = {
+    P1: document.getElementById("minigameCanvas1"),
+    P2: document.getElementById("minigameCanvas2")
+  };
+  const mgCtxs = {
+    P1: mgCanvases.P1.getContext("2d"),
+    P2: mgCanvases.P2.getContext("2d")
+  };
+  const mgStatus = {
+    P1: document.getElementById("minigameStatus1"),
+    P2: document.getElementById("minigameStatus2")
+  };
+
+  // Track minigame state per speler
+  const minigameState = {
+    P1: {active:false, plankAngle:0, balanceTime:0, completed:false, lastTime:0},
+    P2: {active:false, plankAngle:0, balanceTime:0, completed:false, lastTime:0}
+  };
+
+  //GAMESETTINGS
+  const TILE_SIZE = 16;
+  const SPEED = 400;
+  document.getElementById("newGameBtn").addEventListener("click", () => {
+    location.reload();
+  });
+  const track = [
+  "**||*||**||**||**||**||**||**||**||**||**||**||**||**",
+  "*11111C111111111NNNNNY222>BBBBBOBBBBB<222222C2222222*",
+  "|11111C111111111NNNNNY222>BBBBBOBBBBB<222222C2222222|",
+  "|11=============NNNN==============================22|",
+  "*11=22C222222222NNNNNH111>BBBBBOBBBBB<111111C1111=22*",
+  "*11=22C222222222NNNNNH111>BBBBBOBBBBB<111111C1111=22*",
+  "|11=22||**||**||**||**||**||**||**||**||**||***11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*%%=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*%%=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22***||**||**||**||**||**||**||**||**||**||SSSSS|",
+  "*11=22C2222222222222222222222YNNNNN1111111111C111=22*",
+  "*11=22C2222222222222222222222YNNNNN1111111111C111=22*",
+  "|11============================NNNN===============22|",
+  "|11111C1111111111111111111111HNNNNN2222222222C222222|",
+  "*11111C1111111111111111111111HNNNNN2222222222C222222*",
+  "**||**||**||**||**||**||**||**||**||**||**||**||*||**"
+  ];
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  let gameOver = false;
+  let frameCount = 0;
+  function resizeCanvas() {
+    canvas.width = track[0].length * TILE_SIZE;
+    canvas.height = track.length * TILE_SIZE;
+  }
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+
+
+  function tileAt(tx, ty){ return track[ty]?.[tx] || "|"; }
+
+
+    // Start minigame voor speler p (P1 of P2)
+
+  function startMinigame(pName){
+    const state = minigameState[pName];
+    if(state.active) return;
+
+    state.active = true;
+    state.plankAngle = 0;                // start horizontaal
+    state.ballX = -PLANK_LENGTH/2 + 10;  // start links
+    state.ballSpeed = 0;
+    state.balanceTime = 0;
+    state.completed = false;
+    state.lastTime = performance.now()/1000;
+
+    players[pName].inMinigame = true;
+
+    // toon overlay
+    minigameOverlay.style.display = "block";
+    document.getElementById(pName === "P1" ? "panelP1" : "panelP2").style.display = "flex";
+
+    requestAnimationFrame(()=>animateMinigame(pName));
+  }
+
+
+
+  // Minigame animatie per speler
+
+
+
+
+ // animate minigame
+
+
+
+
+function animateMinigame(pName){
+  const state = minigameState[pName];
+  if(!state.active) return;
+
+  const tNow = performance.now()/1000;
+  const dt = tNow - state.lastTime;
+  state.lastTime = tNow;
+
+  // input
+  const keysPressed = keys;
+  let left = keysPressed[minigameKeys[pName].left] || false;
+  let right = keysPressed[minigameKeys[pName].right] || false;
+
+  // kantel plank
+  if(left) state.plankAngle -= 50 * dt;
+  if(right) state.plankAngle += 50 * dt;
+  if(state.plankAngle > MAX_ANGLE) state.plankAngle = MAX_ANGLE;
+  if(state.plankAngle < -MAX_ANGLE) state.plankAngle = -MAX_ANGLE;
+
+  const angleRad = state.plankAngle * Math.PI / 180;
+
+  // physics langs plank
+  state.ballSpeed += GRAVITY * Math.sin(angleRad) * dt;  // versnelling langs helling
+  state.ballSpeed *= 0.995; // lichte frictie
+  state.ballX += state.ballSpeed * dt;
+
+  // rand van plank detecteren
+  if(state.ballX > PLANK_LENGTH/2 - 10){
+    state.ballX = PLANK_LENGTH/2 - 10;
+    state.ballSpeed *= -0.3; // kleine bounce terug
+  } else if(state.ballX < -PLANK_LENGTH/2 + 10){
+    state.ballX = -PLANK_LENGTH/2 + 10;
+    state.ballSpeed *= -0.3;
+  }
+
+  // check balans
+  let ballColor = "orange";
+  if(Math.abs(state.ballX) < BALANCE_ZONE){
+    state.balanceTime += dt;
+    if(state.balanceTime >= BALANCE_DURATION) state.completed = true;
+    ballColor = "green";
+  } else {
+    state.balanceTime = 0;
+    ballColor = "orange";
+  }
+
+  // update status
+  mgStatus[pName].textContent = state.completed ?
+    "Kantel naar rechts om af te sluiten" :
+    `Balanceren: ${(BALANCE_DURATION - state.balanceTime).toFixed(1)}s`;
+
+  // teken minigame
+  drawMinigame(pName, ballColor);
+
+  // exit minigame
+  if(state.completed && right){
+    const exit = findExitForLane(players[pName].lane);
+    if(exit){
+      players[pName].x = exit.x + 0.5;
+      players[pName].y = exit.y + 0.5;
+    }
+    state.active = false;
+    players[pName].inMinigame = false;
+    document.getElementById(pName === "P1" ? "panelP1" : "panelP2").style.display = "none";
+
+    if(!minigameState.P1.active && !minigameState.P2.active){
+      minigameOverlay.style.display = "none";
+    }
+    return;
+  }
+
+  requestAnimationFrame(()=>animateMinigame(pName));
+}
+
+
+
+
+
+ //drawminigame
+ function drawMinigame(pName, ballColor){
+  const canvas = mgCanvases[pName];
+  const ctx = mgCtxs[pName];
+  const state = minigameState[pName];
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const pivotX = canvas.width/2;
+  const pivotY = canvas.height/2;
+
+  // plank tekenen
+  ctx.save();
+  ctx.translate(pivotX, pivotY);
+  ctx.rotate(state.plankAngle * Math.PI/180);
+  ctx.fillStyle = "#aaa";
+  ctx.fillRect(-PLANK_LENGTH/2, -5, PLANK_LENGTH, 10);
+  ctx.restore();
+
+  // balpositie exact op plank
+  const angleRad = state.plankAngle * Math.PI / 180;
+  const ballWorldX = pivotX + state.ballX * Math.cos(angleRad);
+  const ballWorldY = pivotY + state.ballX * Math.sin(angleRad) - 10;
+
+  // bal tekenen
+  ctx.beginPath();
+  ctx.arc(ballWorldX, ballWorldY, 10, 0, Math.PI*2);
+  ctx.fillStyle = ballColor;
+  ctx.fill();
+}
+
+
+
+
+  function walkableTile(p, x, y){
+    const t = tileAt(Math.floor(x), Math.floor(y));
+    if(["|","G","="].includes(t)) return false;
+    if(t==="1" && p.lane!=="1") return false;
+    if(t==="2" && p.lane!=="2") return false;
+    if(t==="H" && p.lane!=="1") return false;
+    if(t==="Y" && p.lane!=="2") return false;
+    return true;
+  }
+
+  // === Checkpoints opbouwen ===
+  const checkpoints = { "1": [], "2": [] };
+  const used = new Set();
+
+  for(let y=0;y<track.length;y++){
+    for(let x=0;x<track[y].length;x++){
+      if(track[y][x]!=="C") continue;
+      const key = x+","+y;
+      if(used.has(key)) continue;
+
+      const tiles = [{x,y}];
+      if(track[y+1]?.[x]==="C"){ tiles.push({x,y:y+1}); used.add(x+","+(y+1)); }
+
+      const around = [tileAt(x-1,y), tileAt(x+1,y), tileAt(x,y-1), tileAt(x,y+1)];
+      const lane = around.includes("1") ? "1" : "2";
+      checkpoints[lane].push(tiles);
+      used.add(key);
+    }
+  }
+
+  // Sorteren rond track center (rechtsonder eerste)
+  function checkpointCenter(group){
+    let sx=0, sy=0;
+    for(const t of group){ sx+=t.x+0.5; sy+=t.y+0.5; }
+    return {x:sx/group.length, y:sy/group.length};
+  }
+  const trackCenter = {x: track[0].length/2, y: track.length/2};
+
+  for(const lane of ["1","2"]){
+    checkpoints[lane].sort((a,b)=>{
+      const ca=checkpointCenter(a), cb=checkpointCenter(b);
+      return Math.atan2(ca.y-trackCenter.y, ca.x-trackCenter.x)
+          - Math.atan2(cb.y-trackCenter.y, cb.x-trackCenter.x);
+    });
+    while(true){
+      const c = checkpointCenter(checkpoints[lane][0]);
+      if(c.x>trackCenter.x && c.y>trackCenter.y) break;
+      checkpoints[lane].push(checkpoints[lane].shift());
+    }
+  }
+
+  // === Spelers ===
+  const players = {
+    P1: {
+      lane:"1", x:0,y:0,color:"cyan",
+      keys:{z:[0,-1],s:[0,1],q:[-1,0],d:[1,0]},
+      started:false, lap:0, lapStart:0,
+      totalTime:0, bestLap:null,
+      lastTile:null, nextCheckpoint:0,
+      inMinigame:false   // 👈 toegevoegd
+    },
+    P2: {
+      lane:"2", x:0,y:0,color:"yellow",
+      keys:{i:[0,-1],k:[0,1],j:[-1,0],l:[1,0]},
+      started:false, lap:0, lapStart:0,
+      totalTime:0, bestLap:null,
+      lastTile:null, nextCheckpoint:0,
+      inMinigame:false   // 👈 toegevoegd
+    }
+  };
+ //HELPERS--------
+
+  function findGreenFieldBounds(){
+    let minX=Infinity, maxX=-Infinity;
+    let minY=Infinity, maxY=-Infinity;
+
+    for(let y=0;y<track.length;y++){
+      for(let x=0;x<track[y].length;x++){
+        if(track[y][x] !== "G") continue;
+
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+    }
+
+    return {
+      x: minX * TILE_SIZE,
+      y: minY * TILE_SIZE,
+      width: (maxX - minX + 1) * TILE_SIZE,
+      height:(maxY - minY + 1) * TILE_SIZE
+    };
+  }
+
+
+
+
+
+
+    // === Minigame panel positioning ===
+  const greenBounds = findGreenFieldBounds();
+  const canvasRect = canvas.getBoundingClientRect();
+
+  const panelP1 = document.getElementById("panelP1");
+  const panelP2 = document.getElementById("panelP2");
+
+  const PANEL_W = 250;
+  const PANEL_H = 200;
+  const PANEL_OFFSET_Y1 = 10;
+  const PANEL_OFFSET_X1 = -30;
+  const PANEL_OFFSET_Y2 = 10;
+  const PANEL_OFFSET_X2 =  20;
+  // <-- nieuw
+  // P1 links in groen veld
+  // P1 links in groen veld
+  panelP1.style.left =
+    canvasRect.left +
+    greenBounds.x +
+    greenBounds.width * 0.25 -
+    PANEL_W / 2 +
+    PANEL_OFFSET_X1 + "px";  // ← X-offset toegevoegd
+
+  panelP1.style.top =
+    canvasRect.top +
+    greenBounds.y +
+    greenBounds.height / 2 -
+    PANEL_H / 2 +
+    PANEL_OFFSET_Y1 + "px";
+
+  // P2 rechts in groen veld
+  panelP2.style.left =
+    canvasRect.left +
+    greenBounds.x +
+    greenBounds.width * 0.75 -
+    PANEL_W / 2 -
+    PANEL_OFFSET_X2 + "px";  // ← X-offset ook toepassen, kan min voor naar links
+
+  panelP2.style.top =
+    canvasRect.top +
+    greenBounds.y +
+    greenBounds.height / 2 -
+    PANEL_H / 2 +
+    PANEL_OFFSET_Y2 + "px";
+
+
+  function findExitForLane(lane){
+    for(let y=0;y<track.length;y++){
+      for(let x=0;x<track[y].length;x++){
+        if(track[y][x] !== "<") continue;
+
+        const around = [
+          tileAt(x-1,y),
+          tileAt(x+1,y),
+          tileAt(x,y-1),
+          tileAt(x,y+1)
+        ];
+
+        if(lane === "1" && around.includes("1")) return {x,y};
+        if(lane === "2" && around.includes("2")) return {x,y};
+      }
+    }
+    return null;
+  }
+  // === Startpositie ===
+  function findStart(){
+    for(let y=0;y<track.length;y++){
+      for(let x=0;x<track[y].length;x++){
+        if(track[y][x]!=="S") continue;
+        let sXs=[], xx=x;
+        while(track[y][xx]==="S"){ sXs.push(xx); xx++; }
+        let spawnXs = sXs.filter(sx=> !["|","G","="].includes(tileAt(sx,y-1)));
+        if(spawnXs.length>=2){
+          players.P1.x = spawnXs[0]+0.5; players.P1.y = y-0.5;
+          players.P2.x = spawnXs[spawnXs.length-1]+0.5; players.P2.y = y-0.5;
+        }
+        return;
+      }
+    }
+  }
+  findStart();
+
+  // === Input ===
+  const keys = {};
+  window.addEventListener("keydown", e=>keys[e.key.toLowerCase()]=true);
+  window.addEventListener("keyup", e=>keys[e.key.toLowerCase()]=false);
+
+  // === Update speler ===
+  function updatePlayer(p, dt){
+    if(p.inMinigame) return; // ⛔ pauzeer speler
+
+    let ax=0, ay=0;
+    for(const k in p.keys){
+      if(keys[k]){
+        ax+=p.keys[k][0];
+        ay+=p.keys[k][1];
+      }
+    }
+    const len=Math.hypot(ax,ay);
+    if(len>0){ ax/=len; ay/=len; }
+
+    const nx = p.x + ax*SPEED*dt/TILE_SIZE;
+    const ny = p.y + ay*SPEED*dt/TILE_SIZE;
+
+    if(walkableTile(p,nx,p.y)) p.x=nx;
+    if(walkableTile(p,p.x,ny)) p.y=ny;
+  }
+
+  // === Check triggers ===
+  function checkTriggers(p, now, pName){
+    if(p.inMinigame) return; // ⛔ niks doen tijdens minigame
+
+    const tx=Math.floor(p.x), ty=Math.floor(p.y);
+
+    const next = checkpoints[p.lane][p.nextCheckpoint];
+    if(next && next.some(t=>t.x===tx && t.y===ty)){
+      p.nextCheckpoint++;
+    }
+
+    const tile = tileAt(tx, ty);
+
+    if(tile==="S" && p.lastTile!=="S"){
+      if(!p.started){
+        p.started=true;
+        p.lapStart=now;
+        p.lap=0;
+        p.nextCheckpoint=0;
+      }
+      else if(p.nextCheckpoint===checkpoints[p.lane].length){
+        const lapTime = now - p.lapStart;
+        p.lap++;
+        p.lapStart=now;
+        p.nextCheckpoint=0;
+        if(!p.bestLap || lapTime<p.bestLap) p.bestLap=lapTime;
+      }
+    }
+
+    p.lastTile = tile;
+
+    // 👉 Minigame trigger
+    if(tile === ">" && !p.inMinigame){
+      startMinigame(pName);
+    }
+  }
+
+
+
+  // === Tekenen ===
+  function drawTrack(){
+    for(let y=0;y<track.length;y++){
+      for(let x=0;x<track[y].length;x++){
+        switch(track[y][x]){
+          case "|": ctx.fillStyle="#b30000"; break;
+          case "1": case "2": ctx.fillStyle="#555"; break;
+          case "=": ctx.fillStyle="#777"; break;
+          case "G": ctx.fillStyle="green"; break;
+          case "C":
+            let active=false;
+            for(const p of Object.values(players)){
+              const cp = checkpoints[p.lane][p.nextCheckpoint];
+              if(cp && cp.some(t=>t.x===x && t.y===y)){ active=true; break; }
+            }
+            ctx.fillStyle=active?"green":"purple";
+            break;
+          case "S": ctx.fillStyle="white"; break;
+          case "*": case "%": ctx.fillStyle="white"; break;
+          case ">": case "<": case "O": ctx.fillStyle="orange"; break;
+          case "N": ctx.fillStyle="#000"; break;
+          case "Y": ctx.fillStyle="yellow"; break;
+          case "H": ctx.fillStyle="cyan"; break;
+          case "B": ctx.fillStyle="#999"; break;
+          default: ctx.fillStyle="#777";
+        }
+        ctx.fillRect(x*TILE_SIZE,y*TILE_SIZE,TILE_SIZE,TILE_SIZE);
+      }
+    }
+  }
+  function drawPlayers(){
+    for(const p of Object.values(players)){
+      ctx.fillStyle=p.color;
+      ctx.beginPath();
+      ctx.arc(p.x*TILE_SIZE, p.y*TILE_SIZE, TILE_SIZE*0.4,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+  function fmt(t){ return t?t.toFixed(2)+"s":"--"; }
+  function drawHUD(){
+    const laps = +document.getElementById("lapInput").value;
+    const h = document.getElementById("hud");
+    h.innerHTML = `
+    <b>P1</b> Lap ${players.P1.lap}/${laps} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}<br>
+    <b>P2</b> Lap ${players.P2.lap}/${laps} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}
+    `;
+  }
+
+  // === Loop ===
+  let last=0;
+  function loop(t){
+    if(gameOver) return; // stop de loop als het spel voorbij is
+
+    const dt = (t - last) / 1000;
+    last = t;
+
+    updatePlayer(players.P1, dt);
+    updatePlayer(players.P2, dt);
+
+    const now = performance.now() / 1000;
+    checkTriggers(players.P1, now, "P1");
+    checkTriggers(players.P2, now, "P2");
+
+    if(players.P1.started) players.P1.totalTime += dt;
+    if(players.P2.started) players.P2.totalTime += dt;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawTrack();
+    drawPlayers();
+    drawHUD();
+
+    // === Check finish om de 20 frames ===
+    frameCount++;
+    if(frameCount >= 20){
+      frameCount = 0;
+      const laps = +document.getElementById("lapInput").value;
+      let winner = null;
+      if(players.P1.lap >= laps) winner = "P1";
+      else if(players.P2.lap >= laps) winner = "P2";
+
+      if(winner){
+        gameOver = true;
+        document.getElementById("winnerText").textContent = winner + " WINS!";
+        document.getElementById("overlay").style.display = "flex";
+        return; // stop verdere updates
+      }
+
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+  </script>
+
+  </body>
+  </html>
