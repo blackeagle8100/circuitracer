@@ -15,7 +15,6 @@ A: Tilt ball left in minigame
 E: Tilt ball right in minigame
 
 --------------------------
-
 P2:
 UIO
 JKL
