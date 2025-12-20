@@ -216,7 +216,18 @@ canvas#game {
       Laps:
       <input id="lapInput" type="number" value="3" min="3" style="width:50px">
     </div>
-    <div id="hud"></div>
+
+
+
+    <div id="hud">
+  <input type="text" id="nameP1" value="P1" style="width:60px">
+  <span id="statsP1"></span><br>
+  <input type="text" id="nameP2" value="P2" style="width:60px">
+  <span id="statsP2"></span>
+</div>
+
+
+
   </div>
 
 
@@ -263,7 +274,7 @@ canvas#game {
   const BALANCE_DURATION = 5; // seconden dat de speler moet balanceren
   let PLANK_LENGTH = 300;  // pixels
   const MAX_ANGLE = 45;       // max kanteling
-  const BALANCE_ZONE = 80;    // px rond midden waar het groen is
+  const BALANCE_ZONE = 30;    // px rond midden waar het groen is
   const GRAVITY = 700;        // pixels/sec^2
 
 
@@ -930,25 +941,19 @@ function checkTriggers(p, now, pName){
 
 
 
-
 function drawHUD() {
     const laps = +document.getElementById("lapInput").value;
-    const h = document.getElementById("hud");
-
     const now = performance.now() / 1000;
+
     const p1CurrentLap = players.P1.started ? (now - players.P1.lapStart) : 0;
     const p2CurrentLap = players.P2.started ? (now - players.P2.lapStart) : 0;
 
-    // Bewaar eventueel de vorige waarde van de input als die al bestaat
-    const p1NamePrev = document.getElementById("nameP1")?.value || "P1";
-    const p2NamePrev = document.getElementById("nameP2")?.value || "P2";
+    // Alleen de spans updaten, input blijft intact
+    document.getElementById("statsP1").textContent =
+        `Lap ${players.P1.lap}/${laps} | Current: ${fmt(p1CurrentLap)} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}`;
 
-    h.innerHTML = `
-        <input type="text" id="nameP1" value="${p1NamePrev}" style="width:60px">
-        Lap ${players.P1.lap}/${laps} | Current: ${fmt(p1CurrentLap)} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}<br>
-        <input type="text" id="nameP2" value="${p2NamePrev}" style="width:60px">
-        Lap ${players.P2.lap}/${laps} | Current: ${fmt(p2CurrentLap)} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}
-    `;
+    document.getElementById("statsP2").textContent =
+        `Lap ${players.P2.lap}/${laps} | Current: ${fmt(p2CurrentLap)} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}`;
 }
 
   // === Loop ===
