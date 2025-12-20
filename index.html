@@ -133,6 +133,27 @@ canvas#game {
     box-sizing: border-box;
 }
 
+
+
+  .scoreboardButton {
+    display: inline-block;
+    padding: 15px 30px;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #ffcc00;             /* gele letters */
+    background-color: red;  /* volledig rood */
+    border: 3px solid #ffff66;
+    border-radius: 10px;
+    text-decoration: none;
+    box-shadow: 0 0 40px #ffff66;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+}
+
+.scoreboardButton:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 30px dark-green;
+    background-color: #00a000; /* groen bij hover */
+}
 @media (max-width: 900px) and (orientation: landscape) {
   .minigamePanel {
     max-height: 60%;
