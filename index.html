@@ -1013,7 +1013,8 @@ if(players.P2.started) {
     document.getElementById("overlay").style.display = "flex";
 
     // ✅ Upload hier de best_lap voor iedere speler die toch een ronde gereden heeft
-
+        // Upload scores naar Supabase
+    uploadEndScores();
 }
         }
     }
@@ -1032,5 +1033,31 @@ if (!hasTouch) {
 }
   </script>
 
-  </body>
+  <script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+  const supabaseUrl = 'https://itmhwyamdcdcompixnrk.supabase.co'
+  const supabaseKey = 'sb_publishable_lun6Mhjl_0P4vqQNaPGyKw_OKNwJ9cW'
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
+  function uploadScore(playerName, bestLap) {
+      if (!playerName || bestLap == null) return
+      supabase.from('scores').insert([{player_name: playerName, lap_time: bestLap}])
+          .then(({data, error}) => {
+              if(error) console.error('Supabase error:', error)
+              else console.log('Score uploaded:', data)
+          })
+  }
+
+  // bij einde spel
+  function uploadEndScores() {
+      if(players.P1.lap > 0) uploadScore(document.getElementById("nameP1").value, players.P1.bestLap)
+      if(players.P2.lap > 0) uploadScore(document.getElementById("nameP2").value, players.P2.bestLap)
+  }
+
+  // call uploadEndScores() in je finish logica
+</script>
+
+
+</body>
   </html>
