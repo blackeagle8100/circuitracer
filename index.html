@@ -2,104 +2,275 @@
   <html lang="nl">
   <head>
   <meta charset="UTF-8">
-  <title>CircuitRacer</title>
-  <style>
-  body { margin:0; background:#111; color:white; font-family:monospace; display:flex; flex-direction:column; align-items:center;}
-  canvas { margin-top:10px; border:6px solid red; background:#2a2a2a; image-rendering: pixelated; }
+  <title>Carrera Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
-  .minigamePanel{
-  position:absolute;
-  display:none;
-  flex-direction:column;
-  align-items:center;
-  background:rgba(0,0,0,0.6);
-  border:3px solid white;
-  padding:6px;
+<style>
+body {
+    margin:0;
+    background:#111;
+    color:white;
+    font-family:monospace;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    touch-action: none;
 }
-  </style>
-  </head>
-  <body>
 
-  <h2>Carrera Track Simulator</h2>
-  <div style="margin-bottom:8px">
-    Laps:
-    <input id="lapInput" type="number" value="3" min="1" style="width:50px">
-  </div>
-
-  <div id="hud" style="font-size:14px; margin-bottom:6px"></div>
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
 
 
-  <div id="minigameOverlay" style="
-  position:absolute;
-  top:0; left:0;
-  pointer-events:none;
-  display:none;
-  z-index:20;
-">
+h2 { display: none !important; }
+/* ===== TOP BAR (NEEMT RUIMTE IN, LIGT NIET OVER CANVAS) ===== */
+#topBar {
+    width: 100%;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0,0,0,0.85);
+    border-bottom: 2px solid #333;
+    padding: 0 10px;
+    box-sizing: border-box;
+    z-index: 30;
+}
 
-    <!-- Minigame P1 -->
-    <div id="panelP1" class="minigamePanel">
-      <div style="color:white; font-size:24px; margin-bottom:5px;">Player 1</div>
-      <canvas id="minigameCanvas1" width="300" height="150" style="border:3px solid white; background:#222;"></canvas>
-      <div style="color:white; font-size:20px;" id="minigameStatus1">Balanceren: 5.0s</div>
-    </div>
+/* laps links */
+#lapContainer {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+}
 
-    <!-- Minigame P2 -->
-    <div id="panelP2" class="minigamePanel">
-      <div style="color:white; font-size:24px; margin-bottom:5px;">Player 2</div>
-      <canvas id="minigameCanvas2" width="300" height="150" style="border:3px solid white; background:#222;"></canvas>
-      <div style="color:white; font-size:20px;" id="minigameStatus2">Balanceren: 5.0s</div>
-    </div>
-  </div>
+/* HUD gecentreerd */
+#hud {
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.2;
+}
 
-
-  <canvas id="game"></canvas>
-
+/* ===== GAME AREA ===== */
 
 
-  <div id="overlay" style="
-    position:absolute;
+canvas#game {
+    max-width: 100%;
+    max-height: 100%;
+    image-rendering: pixelated;
+}
+
+#mobileControls {
+    position: fixed;
+    bottom: 5px;
+    left: 0;
+    right: 0;
+    height: 35%;
+    pointer-events: auto;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 15px;
+    box-sizing: border-box;
+    z-index: 12;
+}
+
+.stick {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    pointer-events: auto;
+    touch-action: none;
+}
+
+#stickP1 { margin-left: 10px; }
+#stickP2 { margin-right: 10px; }
+
+.knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 50px;
+    height: 50px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+
+#minigameOverlay {
+    position: fixed;
+    top: 0;              /* 👈 BELANGRIJK */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    pointer-events: none;
+    z-index: 25;
+}
+
+
+.minigamePanel {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0,0,0,0.75);
+    border: 2px solid white;
+    padding: 6px;
+    pointer-events: auto;
+    min-width: 20px;
+    min-height: 80px;
+    width: 100%; /* default */
+    height: auto; /* default */
+    max-height: 40%;
+    display: none;
+    box-sizing: border-box;
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .minigamePanel {
+    max-height: 60%;
+  }
+}
+
+
+/* Overlay einde spel */
+#overlay {
+    position:fixed;
     top:0; left:0; right:0; bottom:0;
-    background:rgba(0,0,0,0.8);
+    background:rgba(0,0,0,0.85);
     color:white;
     font-size:48px;
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
-    z-index:10;
-    display:none;
     z-index:30;
     gap:20px;
-  ">
-    <span id="winnerText">WINNER</span>
-    <button id="newGameBtn" style="
-      font-size:24px;
-      padding:10px 20px;
-      cursor:pointer;
-    ">NEW GAME</button>
+}
+#gameWrapper {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 48px);
+    max-height: calc(100vh - 48px);
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+#game {
+    max-width: 100%;
+    max-height: 100%;
+    image-rendering: pixelated;
+}
+
+#newGameBtn {
+    font-size:24px;
+    padding:10px 20px;
+    cursor:pointer;
+}
+
+@media (orientation: portrait) {
+  body::before {
+    content: "Draai je telefoon horizontaal";
+    position: fixed;
+    inset: 0;
+    background: black;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    font-size: 20px;
+  }
+}
+
+/* Mobile tweaks (landscape) */
+@media (max-width: 900px) {
+  #gameWrapper {
+    height: calc(100vh - 40px);
+  }
+
+  #mobileControls {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: 40%;
+  }
+}
+
+</style>
+
+
+  </head>
+<body>
+
+  <div id="topBar">
+    <div id="lapContainer">
+      Laps:
+      <input id="lapInput" type="number" value="3" min="3" style="width:50px">
+    </div>
+    <div id="hud"></div>
+  </div>
+
+
+  <div id="gameWrapper">
+  <canvas id="game"></canvas>
+</div>
+
+
+    <div id="minigameOverlay">
+      <div id="panelP1" class="minigamePanel">
+        <div>Player 1</div>
+        <canvas id="minigameCanvas1" width="300" height="150"></canvas>
+        <div id="minigameStatus1"></div>
+      </div>
+
+      <div id="panelP2" class="minigamePanel">
+        <div>Player 2</div>
+        <canvas id="minigameCanvas2" width="300" height="150"></canvas>
+        <div id="minigameStatus2"></div>
+      </div>
+    </div>
+
+    <div id="overlay" style="display:none">
+      <span id="winnerText">WINNER</span>
+      <button id="newGameBtn">NEW GAME</button>
+    </div>
+
+
+  <div id="mobileControls">
+    <div id="stickP1" class="stick"><div class="knob"></div></div>
+    <div id="stickP2" class="stick"><div class="knob"></div></div>
   </div>
 
 
 
 
   <script>
+  // Supabase client initialiseren
 
 
     // Minigame instellingen
   // === MINIGAME SETTINGS ===
   // === MINIGAME SETTINGS ===
   const BALANCE_DURATION = 5; // seconden dat de speler moet balanceren
-  const PLANK_LENGTH = 300;   // pixels
+  let PLANK_LENGTH = 300;  // pixels
   const MAX_ANGLE = 45;       // max kanteling
-  const BALANCE_ZONE = 10;    // px rond midden waar het groen is
-  const GRAVITY = 900;        // pixels/sec^2
+  const BALANCE_ZONE = 30;    // px rond midden waar het groen is
+  const GRAVITY = 700;        // pixels/sec^2
 
 
   // key mapping
   const minigameKeys = {
-    P1: { left: "a", right: "e" },
-    P2: { left: "u", right: "o" }
+    P1: { left: "q", right: "d" },
+    P2: { left: "j", right: "l" }
   };
 
   const minigameOverlay = document.getElementById("minigameOverlay");
@@ -131,11 +302,11 @@
   });
   const track = [
   "**||*||**||**||**||**||**||**||**||**||**||**||**||**",
-  "*11111C111111111NNNNNY222>BBBBBOBBBBB<222222C2222222*",
-  "|11111C111111111NNNNNY222>BBBBBOBBBBB<222222C2222222|",
+  "*11111C111111111NNNNNY222>BBBBBOBBBBB<22222C22222222*",
+  "|11111C111111111NNNNNY222>BBBBBOBBBBB<22222C22222222|",
   "|11=============NNNN==============================22|",
-  "*11=22C222222222NNNNNH111>BBBBBOBBBBB<111111C1111=22*",
-  "*11=22C222222222NNNNNH111>BBBBBOBBBBB<111111C1111=22*",
+  "*11=22C222222222NNNNNH111>BBBBBOBBBBB<11111C11111=22*",
+  "*11=22C222222222NNNNNH111>BBBBBOBBBBB<11111C11111=22*",
   "|11=22||**||**||**||**||**||**||**||**||**||***11=22|",
   "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22|",
   "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22*",
@@ -154,23 +325,95 @@
   "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
   "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
   "|11=22***||**||**||**||**||**||**||**||**||**||SSSSS|",
-  "*11=22C2222222222222222222222YNNNNN1111111111C111=22*",
-  "*11=22C2222222222222222222222YNNNNN1111111111C111=22*",
+  "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
+  "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "|11============================NNNN===============22|",
-  "|11111C1111111111111111111111HNNNNN2222222222C222222|",
-  "*11111C1111111111111111111111HNNNNN2222222222C222222*",
+  "|111111111C111111111111111111HNNNNN2222222222C222222|",
+  "*111111111C111111111111111111HNNNNN2222222222C222222*",
   "**||**||**||**||**||**||**||**||**||**||**||**||*||**"
   ];
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
   let gameOver = false;
-  let frameCount = 0;
-  function resizeCanvas() {
-    canvas.width = track[0].length * TILE_SIZE;
-    canvas.height = track.length * TILE_SIZE;
-  }
-  window.addEventListener("resize", resizeCanvas);
+
+
+
+function positionMinigamePanel(pName){
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    const canvasRect = canvas.getBoundingClientRect();
+    const green = findGreenFieldBounds();
+
+    const scaleX = canvasRect.width / canvas.width;
+    const scaleY = canvasRect.height / canvas.height;
+
+    // Panel grootte
+    const PANEL_W = Math.min(500, green.width * scaleX * 0.45); // 45% van groen
+    let PANEL_H = Math.min(350, green.height * scaleY * 0.6); // 60% van groen
+if(window.innerHeight < 600) PANEL_H = Math.min(300, green.height * scaleY * 0.7); // extra voor small screens
+
+
+    panel.style.width  = PANEL_W + "px";
+    panel.style.height = PANEL_H + "px";
+
+    const greenLeft = canvasRect.left + green.x * scaleX;
+    const TOPBAR_HEIGHT = 48;
+
+    const greenTop = canvasRect.top + green.y * scaleY;
+
+// Verticaal centreren in het groene veld
+panel.style.top = greenTop + green.height * scaleY / 2 - PANEL_H / 2 + "px";
+
+
+    // Plaats P1 links van het midden van groen, P2 rechts van het midden
+    if(pName === "P1"){
+        panel.style.left = greenLeft + green.width * scaleX * 0.25 - PANEL_W/2 + "px";
+    } else {
+        panel.style.left = greenLeft + green.width * scaleX * 0.75 - PANEL_W/2 + "px";
+    }
+
+    // Verticaal centreren in het groene veld
+    panel.style.top = greenTop + green.height * scaleY / 2 - PANEL_H/2 + "px";
+
+    resizeMinigameCanvas(pName);
+}
+
+function resizeMinigameCanvas(p){
+    const panel = document.getElementById(p === "P1" ? "panelP1" : "panelP2");
+    const canvas = mgCanvases[p];
+
+    canvas.width  = panel.clientWidth - 12;
+    canvas.height = panel.clientHeight - 20; // iets hoger
+
+    PLANK_LENGTH = Math.min(canvas.width * 0.9, 300);
+}
+
+
+
+function resizeCanvas(){
+  const gameWidth  = track[0].length * TILE_SIZE;
+  const gameHeight = track.length * TILE_SIZE;
+
+  canvas.width  = gameWidth;
+  canvas.height = gameHeight;
+
+  const vw = window.innerWidth;
+  const wrapper = document.getElementById("gameWrapper");
+  const vh = wrapper.clientHeight;
+
+  const scale = Math.min(vw / gameWidth, vh / gameHeight);
+
+  canvas.style.width  = (gameWidth  * scale) + "px";
+  canvas.style.height = (gameHeight * scale) + "px";
+
+  positionMinigamePanel("P1");
+  positionMinigamePanel("P2");
+
+}
+
+
+ window.addEventListener("orientationchange", resizeCanvas);
+ window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
 
@@ -180,13 +423,15 @@
 
     // Start minigame voor speler p (P1 of P2)
 
-  function startMinigame(pName){
+function startMinigame(pName){
     const state = minigameState[pName];
     if(state.active) return;
 
     state.active = true;
-    state.plankAngle = 0;                // start horizontaal
-    state.ballX = -PLANK_LENGTH/2 + 10;  // start links
+    updateMinigameOverlay();
+
+    state.plankAngle = 0;
+    state.ballX = -PLANK_LENGTH/2 + 10;
     state.ballSpeed = 0;
     state.balanceTime = 0;
     state.completed = false;
@@ -194,14 +439,27 @@
 
     players[pName].inMinigame = true;
 
-    // toon overlay
-    minigameOverlay.style.display = "block";
-    document.getElementById(pName === "P1" ? "panelP1" : "panelP2").style.display = "flex";
+    const panel = document.getElementById(
+        pName === "P1" ? "panelP1" : "panelP2"
+    );
 
-    requestAnimationFrame(()=>animateMinigame(pName));
-  }
+    panel.style.display = "flex";
+    panel.style.pointerEvents = "auto";
+
+    positionMinigamePanel(pName);
+
+    requestAnimationFrame(() => animateMinigame(pName));
+}
 
 
+
+
+
+function checkMinigameOverlay(){
+    if(!minigameState.P1.active && !minigameState.P2.active){
+        minigameOverlay.style.display = "none";
+    }
+}
 
   // Minigame animatie per speler
 
@@ -211,88 +469,107 @@
  // animate minigame
 
 
-
-
 function animateMinigame(pName){
-  const state = minigameState[pName];
-  if(!state.active) return;
+    const state = minigameState[pName];
+    if(!state.active) return;
 
-  const tNow = performance.now()/1000;
-  const dt = tNow - state.lastTime;
-  state.lastTime = tNow;
+    const tNow = performance.now() / 1000;
+    const dt = tNow - state.lastTime;
+    state.lastTime = tNow;
 
-  // input
-  const keysPressed = keys;
-  let left = keysPressed[minigameKeys[pName].left] || false;
-  let right = keysPressed[minigameKeys[pName].right] || false;
+    // === INPUT ===
+    const stick = sticks[pName];
+    const DEADZONE = 0.15;
 
-  // kantel plank
-  if(left) state.plankAngle -= 50 * dt;
-  if(right) state.plankAngle += 50 * dt;
-  if(state.plankAngle > MAX_ANGLE) state.plankAngle = MAX_ANGLE;
-  if(state.plankAngle < -MAX_ANGLE) state.plankAngle = -MAX_ANGLE;
+    let left =
+        keys[minigameKeys[pName].left] ||
+        (stick && stick.x < -DEADZONE);
 
-  const angleRad = state.plankAngle * Math.PI / 180;
+    let right =
+        keys[minigameKeys[pName].right] ||
+        (stick && stick.x > DEADZONE);
 
-  // physics langs plank
-  state.ballSpeed += GRAVITY * Math.sin(angleRad) * dt;  // versnelling langs helling
-  state.ballSpeed *= 0.995; // lichte frictie
-  state.ballX += state.ballSpeed * dt;
+    // === PLANK CONTROLE ===
+    if(left)  state.plankAngle -= 50 * dt;
+    if(right) state.plankAngle += 50 * dt;
 
-  // rand van plank detecteren
-  if(state.ballX > PLANK_LENGTH/2 - 10){
-    state.ballX = PLANK_LENGTH/2 - 10;
-    state.ballSpeed *= -0.3; // kleine bounce terug
-  } else if(state.ballX < -PLANK_LENGTH/2 + 10){
-    state.ballX = -PLANK_LENGTH/2 + 10;
-    state.ballSpeed *= -0.3;
-  }
+    state.plankAngle = Math.max(
+        -MAX_ANGLE,
+        Math.min(MAX_ANGLE, state.plankAngle)
+    );
 
-  // check balans
-  let ballColor = "orange";
-  if(Math.abs(state.ballX) < BALANCE_ZONE){
-    state.balanceTime += dt;
-    if(state.balanceTime >= BALANCE_DURATION) state.completed = true;
-    ballColor = "green";
-  } else {
-    state.balanceTime = 0;
-    ballColor = "orange";
-  }
+    const angleRad = state.plankAngle * Math.PI / 180;
 
-  // update status
-  mgStatus[pName].textContent = state.completed ?
-    "Kantel naar rechts om af te sluiten" :
-    `Balanceren: ${(BALANCE_DURATION - state.balanceTime).toFixed(1)}s`;
+    // === PHYSICS ===
+    state.ballSpeed += GRAVITY * Math.sin(angleRad) * dt;
+    state.ballSpeed *= 0.995;
+    state.ballX += state.ballSpeed * dt;
 
-  // teken minigame
-  drawMinigame(pName, ballColor);
-
-  // exit minigame
-  if(state.completed && right){
-    const exit = findExitForLane(players[pName].lane);
-    if(exit){
-      players[pName].x = exit.x + 0.5;
-      players[pName].y = exit.y + 0.5;
+    // === PLANK RAND ===
+    const LIMIT = PLANK_LENGTH / 2 - 10;
+    if(state.ballX > LIMIT){
+        state.ballX = LIMIT;
+        state.ballSpeed *= -0.3;
     }
-    state.active = false;
-    players[pName].inMinigame = false;
-    document.getElementById(pName === "P1" ? "panelP1" : "panelP2").style.display = "none";
-
-    if(!minigameState.P1.active && !minigameState.P2.active){
-      minigameOverlay.style.display = "none";
+    if(state.ballX < -LIMIT){
+        state.ballX = -LIMIT;
+        state.ballSpeed *= -0.3;
     }
-    return;
-  }
 
-  requestAnimationFrame(()=>animateMinigame(pName));
+    // === BALANCE CHECK ===
+    let ballColor = "orange";
+
+    if(Math.abs(state.ballX) < BALANCE_ZONE){
+        state.balanceTime += dt;
+        ballColor = "green";
+
+        if(state.balanceTime >= BALANCE_DURATION){
+            state.completed = true;
+        }
+    } else {
+        state.balanceTime = 0;
+    }
+
+    // === STATUS TEXT ===
+    mgStatus[pName].textContent = state.completed
+        ? "Houd rechts om te verlaten"
+        : `Balanceren: ${(BALANCE_DURATION - state.balanceTime).toFixed(1)}s`;
+
+    // === DRAW ===
+    drawMinigame(pName, ballColor);
+
+    // === EXIT ===
+    if(state.completed && right){
+        const exit = findExitForLane(players[pName].lane);
+        if(exit){
+            players[pName].x = exit.x + 0.5;
+            players[pName].y = exit.y + 0.5;
+        }
+
+        state.active = false;
+        players[pName].inMinigame = false;
+        players[pName].lastTile = null;
+
+        const panel = document.getElementById(
+            pName === "P1" ? "panelP1" : "panelP2"
+        );
+        panel.style.display = "none";
+        panel.style.pointerEvents = "none";
+
+        updateMinigameOverlay();
+        return;
+    }
+
+    requestAnimationFrame(() => animateMinigame(pName));
 }
 
 
 
 
 
+
  //drawminigame
- function drawMinigame(pName, ballColor){
+function drawMinigame(pName, ballColor){
   const canvas = mgCanvases[pName];
   const ctx = mgCtxs[pName];
   const state = minigameState[pName];
@@ -320,6 +597,7 @@ function animateMinigame(pName){
   ctx.fillStyle = ballColor;
   ctx.fill();
 }
+
 
 
 
@@ -376,24 +654,27 @@ function animateMinigame(pName){
   }
 
   // === Spelers ===
-  const players = {
-    P1: {
-      lane:"1", x:0,y:0,color:"cyan",
-      keys:{z:[0,-1],s:[0,1],q:[-1,0],d:[1,0]},
-      started:false, lap:0, lapStart:0,
-      totalTime:0, bestLap:null,
-      lastTile:null, nextCheckpoint:0,
-      inMinigame:false   // 👈 toegevoegd
-    },
-    P2: {
-      lane:"2", x:0,y:0,color:"yellow",
-      keys:{i:[0,-1],k:[0,1],j:[-1,0],l:[1,0]},
-      started:false, lap:0, lapStart:0,
-      totalTime:0, bestLap:null,
-      lastTile:null, nextCheckpoint:0,
-      inMinigame:false   // 👈 toegevoegd
-    }
-  };
+const players = {
+  P1: {
+    lane:"1", x:0,y:0,color:"cyan",
+    keys:{z:[0,-1],s:[0,1],q:[-1,0],d:[1,0]},
+    started:false, lap:0, lapStart:0,
+    totalTime:0, bestLap:null,
+    lastTile:null, nextCheckpoint:0,
+    inMinigame:false,
+    finishTime: null      // 👈 TOEVOEGEN
+  },
+  P2: {
+    lane:"2", x:0,y:0,color:"yellow",
+    keys:{i:[0,-1],k:[0,1],j:[-1,0],l:[1,0]},
+    started:false, lap:0, lapStart:0,
+    totalTime:0, bestLap:null,
+    lastTile:null, nextCheckpoint:0,
+    inMinigame:false,
+    finishTime: null      // 👈 TOEVOEGEN
+  }
+}
+
  //HELPERS--------
 
   function findGreenFieldBounds(){
@@ -421,53 +702,17 @@ function animateMinigame(pName){
 
 
 
+  function updateMinigameOverlay(){
+    const active =
+        minigameState.P1.active ||
+        minigameState.P2.active;
 
+    minigameOverlay.style.display = active ? "block" : "none";
+}
 
 
     // === Minigame panel positioning ===
-  const greenBounds = findGreenFieldBounds();
-  const canvasRect = canvas.getBoundingClientRect();
 
-  const panelP1 = document.getElementById("panelP1");
-  const panelP2 = document.getElementById("panelP2");
-
-  const PANEL_W = 250;
-  const PANEL_H = 200;
-  const PANEL_OFFSET_Y1 = 10;
-  const PANEL_OFFSET_X1 = -30;
-  const PANEL_OFFSET_Y2 = 10;
-  const PANEL_OFFSET_X2 =  20;
-  // <-- nieuw
-  // P1 links in groen veld
-  // P1 links in groen veld
-  panelP1.style.left =
-    canvasRect.left +
-    greenBounds.x +
-    greenBounds.width * 0.25 -
-    PANEL_W / 2 +
-    PANEL_OFFSET_X1 + "px";  // ← X-offset toegevoegd
-
-  panelP1.style.top =
-    canvasRect.top +
-    greenBounds.y +
-    greenBounds.height / 2 -
-    PANEL_H / 2 +
-    PANEL_OFFSET_Y1 + "px";
-
-  // P2 rechts in groen veld
-  panelP2.style.left =
-    canvasRect.left +
-    greenBounds.x +
-    greenBounds.width * 0.75 -
-    PANEL_W / 2 -
-    PANEL_OFFSET_X2 + "px";  // ← X-offset ook toepassen, kan min voor naar links
-
-  panelP2.style.top =
-    canvasRect.top +
-    greenBounds.y +
-    greenBounds.height / 2 -
-    PANEL_H / 2 +
-    PANEL_OFFSET_Y2 + "px";
 
 
   function findExitForLane(lane){
@@ -491,26 +736,83 @@ function animateMinigame(pName){
   // === Startpositie ===
   function findStart(){
     for(let y=0;y<track.length;y++){
-      for(let x=0;x<track[y].length;x++){
-        if(track[y][x]!=="S") continue;
-        let sXs=[], xx=x;
-        while(track[y][xx]==="S"){ sXs.push(xx); xx++; }
-        let spawnXs = sXs.filter(sx=> !["|","G","="].includes(tileAt(sx,y-1)));
-        if(spawnXs.length>=2){
-          players.P1.x = spawnXs[0]+0.5; players.P1.y = y-0.5;
-          players.P2.x = spawnXs[spawnXs.length-1]+0.5; players.P2.y = y-0.5;
+        for(let x=0;x<track[y].length;x++){
+            if(track[y][x]!=="S") continue;
+            let sXs=[], xx=x;
+            while(track[y][xx]==="S"){ sXs.push(xx); xx++; }
+            let spawnXs = sXs.filter(sx=> !["|","G","="].includes(tileAt(sx,y-1)));
+            if(spawnXs.length>=2){
+                players.P1.x = spawnXs[0]+0.5;
+                players.P1.y = y-0.5;
+                players.P1.started = false;
+                players.P1.lap = 0;
+                players.P1.finishTime = null;
+
+                players.P2.x = spawnXs[spawnXs.length-1]+0.5;
+                players.P2.y = y-0.5;
+                players.P2.started = false;
+                players.P2.lap = 0;
+                players.P2.finishTime = null;
+            }
+            return;
         }
-        return;
-      }
     }
-  }
+}
+
   findStart();
 
   // === Input ===
   const keys = {};
   window.addEventListener("keydown", e=>keys[e.key.toLowerCase()]=true);
   window.addEventListener("keyup", e=>keys[e.key.toLowerCase()]=false);
+  const sticks = {
+  P1: { x:0, y:0 },
+  P2: { x:0, y:0 }
+};
 
+function setupStick(stickId, player){
+    const stick = document.getElementById(stickId);
+    const knob = stick.querySelector(".knob");
+    const radius = 50;
+
+    function start(e){
+        e.preventDefault();
+        move(e);
+        window.addEventListener("touchmove", move);
+        window.addEventListener("touchend", end);
+    }
+
+    function move(e){
+        const t = e.touches[0];
+        const rect = stick.getBoundingClientRect();
+        let dx = t.clientX - (rect.left + rect.width/2);
+        let dy = t.clientY - (rect.top + rect.height/2);
+
+        const len = Math.hypot(dx, dy);
+        if(len > radius){
+          dx = dx/len * radius;
+          dy = dy/len * radius;
+        }
+
+        knob.style.transform = `translate(${dx}px, ${dy}px) translate(-50%,-50%)`;
+        sticks[player].x = dx / radius;
+        sticks[player].y = dy / radius;
+    }
+
+    function end(){
+        sticks[player].x = 0;
+        sticks[player].y = 0;
+        knob.style.transform = "translate(-50%,-50%)";
+        window.removeEventListener("touchmove", move);
+        window.removeEventListener("touchend", end);
+    }
+
+    stick.addEventListener("touchstart", start);
+}
+
+
+setupStick("stickP1", "P1");
+setupStick("stickP2", "P2");
   // === Update speler ===
   function updatePlayer(p, dt){
     if(p.inMinigame) return; // ⛔ pauzeer speler
@@ -522,7 +824,11 @@ function animateMinigame(pName){
         ay+=p.keys[k][1];
       }
     }
-    const len=Math.hypot(ax,ay);
+
+    const s = sticks[p === players.P1 ? "P1" : "P2"];
+    ax += s.x;
+    ay += s.y;
+        const len=Math.hypot(ax,ay);
     if(len>0){ ax/=len; ay/=len; }
 
     const nx = p.x + ax*SPEED*dt/TILE_SIZE;
@@ -533,41 +839,49 @@ function animateMinigame(pName){
   }
 
   // === Check triggers ===
-  function checkTriggers(p, now, pName){
-    if(p.inMinigame) return; // ⛔ niks doen tijdens minigame
+function checkTriggers(p, now, pName){
+    if(p.inMinigame) return;
 
-    const tx=Math.floor(p.x), ty=Math.floor(p.y);
-
-    const next = checkpoints[p.lane][p.nextCheckpoint];
-    if(next && next.some(t=>t.x===tx && t.y===ty)){
-      p.nextCheckpoint++;
-    }
-
+    const tx = Math.floor(p.x);
+    const ty = Math.floor(p.y);
     const tile = tileAt(tx, ty);
 
-    if(tile==="S" && p.lastTile!=="S"){
-      if(!p.started){
-        p.started=true;
-        p.lapStart=now;
-        p.lap=0;
-        p.nextCheckpoint=0;
-      }
-      else if(p.nextCheckpoint===checkpoints[p.lane].length){
-        const lapTime = now - p.lapStart;
-        p.lap++;
-        p.lapStart=now;
-        p.nextCheckpoint=0;
-        if(!p.bestLap || lapTime<p.bestLap) p.bestLap=lapTime;
-      }
+    // === MINIGAME TRIGGER (EERST!) ===
+    if(tile === ">" && p.lastTile !== ">" && !p.inMinigame){
+        startMinigame(pName);
+    }
+
+    // === CHECKPOINTS ===
+    const next = checkpoints[p.lane][p.nextCheckpoint];
+    if(next && next.some(t => t.x === tx && t.y === ty)){
+        p.nextCheckpoint++;
+    }
+
+    // === START / FINISH ===
+    if(tile === "S" && p.lastTile !== "S"){
+        if(!p.started){
+            p.started = true;
+            p.lapStart = now;
+            p.lap = 0;
+            p.nextCheckpoint = 0;
+        } else if(p.nextCheckpoint === checkpoints[p.lane].length){
+            const lapTime = now - p.lapStart;
+            p.lap++;
+            p.lapStart = now;
+            p.nextCheckpoint = 0;
+            if(!p.bestLap || lapTime < p.bestLap) p.bestLap = lapTime;
+
+            const totalLaps = +document.getElementById("lapInput").value;
+            if(p.lap >= totalLaps && !p.finishTime){
+                p.finishTime = now;
+            }
+        }
     }
 
     p.lastTile = tile;
+}
 
-    // 👉 Minigame trigger
-    if(tile === ">" && !p.inMinigame){
-      startMinigame(pName);
-    }
-  }
+
 
 
 
@@ -609,60 +923,103 @@ function animateMinigame(pName){
       ctx.fill();
     }
   }
-  function fmt(t){ return t?t.toFixed(2)+"s":"--"; }
-  function drawHUD(){
+  function fmt(t){ return t!=null?t.toFixed(2)+"s":"--"; }
+
+
+
+
+
+
+
+function drawHUD(){
     const laps = +document.getElementById("lapInput").value;
     const h = document.getElementById("hud");
-    h.innerHTML = `
-    <b>P1</b> Lap ${players.P1.lap}/${laps} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}<br>
-    <b>P2</b> Lap ${players.P2.lap}/${laps} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}
-    `;
-  }
-
-  // === Loop ===
-  let last=0;
-  function loop(t){
-    if(gameOver) return; // stop de loop als het spel voorbij is
-
-    const dt = (t - last) / 1000;
-    last = t;
-
-    updatePlayer(players.P1, dt);
-    updatePlayer(players.P2, dt);
 
     const now = performance.now() / 1000;
-    checkTriggers(players.P1, now, "P1");
-    checkTriggers(players.P2, now, "P2");
 
-    if(players.P1.started) players.P1.totalTime += dt;
-    if(players.P2.started) players.P2.totalTime += dt;
+    const p1CurrentLap = players.P1.started ? (now - players.P1.lapStart) : 0;
+    const p2CurrentLap = players.P2.started ? (now - players.P2.lapStart) : 0;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawTrack();
-    drawPlayers();
-    drawHUD();
+    h.innerHTML = `
+    <b>P1</b> Lap ${players.P1.lap}/${laps} | Current: ${fmt(p1CurrentLap)} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}<br>
+    <b>P2</b> Lap ${players.P2.lap}/${laps} | Current: ${fmt(p2CurrentLap)} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}
+    `;
+}
 
-    // === Check finish om de 20 frames ===
-    frameCount++;
-    if(frameCount >= 20){
-      frameCount = 0;
-      const laps = +document.getElementById("lapInput").value;
-      let winner = null;
-      if(players.P1.lap >= laps) winner = "P1";
-      else if(players.P2.lap >= laps) winner = "P2";
+  // === Loop ===
+let lastTime = performance.now();
+let frameCount = 0;
 
-      if(winner){
-        gameOver = true;
-        document.getElementById("winnerText").textContent = winner + " WINS!";
-        document.getElementById("overlay").style.display = "flex";
-        return; // stop verdere updates
-      }
+function loop(now){
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
 
+    if(!gameOver){
+
+        // === Update spelers (pauzeert automatisch in minigame) ===
+        updatePlayer(players.P1, dt);
+        updatePlayer(players.P2, dt);
+
+        const currentTime = performance.now() / 1000;
+
+        // === Check triggers ===
+        checkTriggers(players.P1, currentTime, "P1");
+        checkTriggers(players.P2, currentTime, "P2");
+
+        // === Update totale tijd (niet in minigame) ===
+       if(players.P1.started) {
+    players.P1.totalTime += dt;
+}
+if(players.P2.started) {
+    players.P2.totalTime += dt;
+}
+
+        // === Tekenen ===
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawTrack();
+        drawPlayers();
+        drawHUD();
+
+        // === Finish check (niet elke frame) ===
+        frameCount++;
+        if(frameCount >= 20){
+            frameCount = 0;
+
+            // spelers die gefinisht zijn
+            const finishedPlayers = Object.entries(players)
+                .filter(([_, p]) => p.finishTime != null);
+
+            if(finishedPlayers.length > 0){
+    // laagste finishTime wint
+    finishedPlayers.sort((a, b) =>
+        a[1].finishTime - b[1].finishTime
+    );
+
+    const winner = finishedPlayers[0][0];
+
+    gameOver = true;
+    document.getElementById("winnerText").textContent =
+        winner + " WINS!";
+    document.getElementById("overlay").style.display = "flex";
+
+    // ✅ Upload hier de best_lap voor iedere speler die toch een ronde gereden heeft
+
+}
+        }
     }
 
     requestAnimationFrame(loop);
-  }
-  loop();
+}
+
+
+requestAnimationFrame(loop);
+// Verberg mobile controls op apparaten zonder touch
+const hasTouch =
+  ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+
+if (!hasTouch) {
+  document.getElementById("mobileControls").style.display = "none";
+}
   </script>
 
   </body>
