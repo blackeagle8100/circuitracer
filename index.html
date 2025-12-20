@@ -134,29 +134,44 @@ canvas#game {
 }
 
 
-
-  .scoreboardButton {
+#scoreboardButtonContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 10px; /* beetje ruimte tussen lap counter en HUD */
+}
+  
+.scoreboardButton {
     display: inline-block;
-    padding: 15px 30px;
-    font-size: 2rem;
+    padding: 8px 15px;
+    font-size: 1.2rem; /* kleiner dan game-knop, past beter */
     font-weight: bold;
     color: #ffcc00;             /* gele letters */
-    background-color: red;  /* volledig rood */
-    border: 3px solid #ffff66;
-    border-radius: 10px;
+    background-color: red;  /* rood */
+    border: 2px solid #ffff66;
+    border-radius: 8px;
     text-decoration: none;
-    box-shadow: 0 0 40px #ffff66;
+    box-shadow: 0 0 15px #ffff66;
     transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
 }
 
 .scoreboardButton:hover {
     transform: scale(1.1);
-    box-shadow: 0 0 30px green;
-    background-color: #00a000; /* groen bij hover */
+    box-shadow: 0 0 20px #ffff66;
+    background-color: green; /* groen bij hover */
 }
-@media (max-width: 900px) and (orientation: landscape) {
-  .minigamePanel {
-    max-height: 60%;
+
+  .scoreboardButton:active {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px #ffff66;
+    background-color: green; /* groen bij hover */
+}
+
+/* Responsive tweaks */
+@media(max-width:900px){
+  .scoreboardButton {
+    font-size: 1rem;
+    padding: 6px 12px;
   }
 }
 
