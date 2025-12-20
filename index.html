@@ -960,6 +960,12 @@ function drawHUD() {
 let lastTime = performance.now();
 let frameCount = 0;
 
+
+  function uploadEndScores() {
+      if(players.P1.lap > 0) uploadScore(document.getElementById("nameP1").value, players.P1.bestLap)
+      if(players.P2.lap > 0) uploadScore(document.getElementById("nameP2").value, players.P2.bestLap)
+  }
+
 function loop(now){
     const dt = (now - lastTime) / 1000;
     lastTime = now;
@@ -1050,10 +1056,7 @@ if (!hasTouch) {
   }
 
   // bij einde spel
-  function uploadEndScores() {
-      if(players.P1.lap > 0) uploadScore(document.getElementById("nameP1").value, players.P1.bestLap)
-      if(players.P2.lap > 0) uploadScore(document.getElementById("nameP2").value, players.P2.bestLap)
-  }
+
 
   // call uploadEndScores() in je finish logica
 </script>
