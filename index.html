@@ -931,18 +931,23 @@ function checkTriggers(p, now, pName){
 
 
 
-function drawHUD(){
+function drawHUD() {
     const laps = +document.getElementById("lapInput").value;
     const h = document.getElementById("hud");
 
     const now = performance.now() / 1000;
-
     const p1CurrentLap = players.P1.started ? (now - players.P1.lapStart) : 0;
     const p2CurrentLap = players.P2.started ? (now - players.P2.lapStart) : 0;
 
+    // Bewaar eventueel de vorige waarde van de input als die al bestaat
+    const p1NamePrev = document.getElementById("nameP1")?.value || "P1";
+    const p2NamePrev = document.getElementById("nameP2")?.value || "P2";
+
     h.innerHTML = `
-    <b>P1</b> Lap ${players.P1.lap}/${laps} | Current: ${fmt(p1CurrentLap)} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}<br>
-    <b>P2</b> Lap ${players.P2.lap}/${laps} | Current: ${fmt(p2CurrentLap)} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}
+        <input type="text" id="nameP1" value="${p1NamePrev}" style="width:60px">
+        Lap ${players.P1.lap}/${laps} | Current: ${fmt(p1CurrentLap)} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}<br>
+        <input type="text" id="nameP2" value="${p2NamePrev}" style="width:60px">
+        Lap ${players.P2.lap}/${laps} | Current: ${fmt(p2CurrentLap)} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}
     `;
 }
 
