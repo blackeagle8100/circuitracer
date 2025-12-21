@@ -315,7 +315,7 @@ canvas#game {
   // === MINIGAME SETTINGS ===
   const BALANCE_DURATION = 5; // seconden dat de speler moet balanceren
   let PLANK_LENGTH = 300;  // pixels
-  const MAX_ANGLE = 45;       // max kanteling
+  const MAX_ANGLE = 35;       // max kanteling
   const BALANCE_ZONE = 30;    // px rond midden waar het groen is
   const GRAVITY = 700;        // pixels/sec^2
 
@@ -532,7 +532,7 @@ function animateMinigame(pName){
 
     // === INPUT ===
     const stick = sticks[pName];
-    const DEADZONE = 0;
+    const DEADZONE = 0.25;
 
     let left =
         keys[minigameKeys[pName].left] ||
@@ -543,13 +543,25 @@ function animateMinigame(pName){
         (stick && stick.x > DEADZONE);
 
     // === PLANK CONTROLE ===
-    if(left)  state.plankAngle -= 50 * dt;
-    if(right) state.plankAngle += 50 * dt;
+    let stickForce = 0;
 
-    state.plankAngle = Math.max(
-        -MAX_ANGLE,
-        Math.min(MAX_ANGLE, state.plankAngle)
-    );
+    if (stick) {
+        stickForce = stick.x;
+    
+        // deadzone toepassen
+        if (Math.abs(stickForce) < DEADZONE) {
+            stickForce = 0;
+        } else {
+            // her-schaal zodat hij na deadzone vloeiend begint
+            stickForce =
+                (Math.abs(stickForce) - DEADZONE) / (1 - DEADZONE)
+                * Math.sign(stickForce);
+        }
+    }
+        
+    // rotatie
+    state.plankAngle += stickForce * 35 * dt;
+
 
     const angleRad = state.plankAngle * Math.PI / 180;
 
