@@ -308,7 +308,29 @@ canvas#game {
 
   <script>
   // Supabase client initialiseren
-
+    // === Spelers ===
+  const players = {
+    P1: {
+      lane:"1", x:0,y:0,color:"cyan",
+      angle: 0,
+      keys:{z:[0,-1],s:[0,1],q:[-1,0],d:[1,0]},
+      started:false, lap:0, lapStart:0,
+      totalTime:0, bestLap:null,
+      lastTile:null, nextCheckpoint:0,
+      inMinigame:false,
+      finishTime: null
+    },
+    P2: {
+      lane:"2", x:0,y:0,color:"yellow",
+      angle: 0,
+      keys:{i:[0,-1],k:[0,1],j:[-1,0],l:[1,0]},
+      started:false, lap:0, lapStart:0,
+      totalTime:0, bestLap:null,
+      lastTile:null, nextCheckpoint:0,
+      inMinigame:false,
+      finishTime: null
+    }
+  }
 
     // Minigame instellingen
   // === MINIGAME SETTINGS ===
@@ -388,6 +410,21 @@ canvas#game {
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
+
+    // === CAR SPRITES ===
+  const carSprites = {
+    P1: new Image(),
+    P2: new Image()
+  };
+
+  carSprites.P1.src = "icons/P1.png";
+  carSprites.P2.src = "icons/P2.png";
+
+  // (optioneel debug)
+  carSprites.P1.onload = () => console.log("P1 car loaded");
+  carSprites.P2.onload = () => console.log("P2 car loaded");
+
+
   let gameOver = false;
 
 
@@ -545,19 +582,22 @@ function animateMinigame(pName){
     // === PLANK CONTROLE ===
     let stickForce = 0;
 
+    // 🎮 joystick
     if (stick) {
         stickForce = stick.x;
-    
-        // deadzone toepassen
+
         if (Math.abs(stickForce) < DEADZONE) {
             stickForce = 0;
         } else {
-            // her-schaal zodat hij na deadzone vloeiend begint
             stickForce =
                 (Math.abs(stickForce) - DEADZONE) / (1 - DEADZONE)
                 * Math.sign(stickForce);
         }
     }
+
+    // ⌨️ keyboard fallback
+    if (left)  stickForce -= 1;
+    if (right) stickForce += 1;
         
     // rotatie
     state.plankAngle += stickForce * 35 * dt;
@@ -718,27 +758,7 @@ function drawMinigame(pName, ballColor){
     }
   }
 
-  // === Spelers ===
-const players = {
-  P1: {
-    lane:"1", x:0,y:0,color:"cyan",
-    keys:{z:[0,-1],s:[0,1],q:[-1,0],d:[1,0]},
-    started:false, lap:0, lapStart:0,
-    totalTime:0, bestLap:null,
-    lastTile:null, nextCheckpoint:0,
-    inMinigame:false,
-    finishTime: null      // 👈 TOEVOEGEN
-  },
-  P2: {
-    lane:"2", x:0,y:0,color:"yellow",
-    keys:{i:[0,-1],k:[0,1],j:[-1,0],l:[1,0]},
-    started:false, lap:0, lapStart:0,
-    totalTime:0, bestLap:null,
-    lastTile:null, nextCheckpoint:0,
-    inMinigame:false,
-    finishTime: null      // 👈 TOEVOEGEN
-  }
-}
+
 
  //HELPERS--------
 
@@ -894,7 +914,11 @@ setupStick("stickP2", "P2");
     ax += s.x;
     ay += s.y;
         const len=Math.hypot(ax,ay);
-    if(len>0){ ax/=len; ay/=len; }
+    if (len > 0) {
+      ax /= len;
+      ay /= len;
+      p.angle = Math.atan2(ay, ax);
+    }
 
     const nx = p.x + ax*SPEED*dt/TILE_SIZE;
     const ny = p.y + ay*SPEED*dt/TILE_SIZE;
@@ -980,14 +1004,25 @@ function checkTriggers(p, now, pName){
       }
     }
   }
-  function drawPlayers(){
-    for(const p of Object.values(players)){
-      ctx.fillStyle=p.color;
-      ctx.beginPath();
-      ctx.arc(p.x*TILE_SIZE, p.y*TILE_SIZE, TILE_SIZE*0.4,0,Math.PI*2);
-      ctx.fill();
+function drawPlayers() {
+    for (const [key, p] of Object.entries(players)) {
+        const sprite = carSprites[key];
+        if (!sprite.complete) continue;
+
+        const size = TILE_SIZE * 2; // grootte auto
+
+        ctx.save();
+        ctx.translate(p.x * TILE_SIZE, p.y * TILE_SIZE);
+
+        // Correctie voor top-down sprite: voorkant wijst omhoog
+        ctx.rotate(p.angle - Math.PI/2);
+
+        ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+        ctx.restore();
     }
-  }
+}
+
+
   function fmt(t){ return t!=null?t.toFixed(2)+"s":"--"; }
 
 
