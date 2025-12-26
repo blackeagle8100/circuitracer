@@ -1114,12 +1114,17 @@ if(players.P2.started) {
         a[1].finishTime - b[1].finishTime
     );
 
-    const winner = finishedPlayers[0][0];
+    const winnerKey = finishedPlayers[0][0]; // "P1" of "P2"
 
-    gameOver = true;
-    document.getElementById("winnerText").textContent =
-        winner + " WINS!";
-    document.getElementById("overlay").style.display = "flex";
+const winnerName =
+    document.getElementById(
+        winnerKey === "P1" ? "nameP1" : "nameP2"
+    ).value || winnerKey;
+
+gameOver = true;
+document.getElementById("winnerText").textContent =
+    winnerName + " WINS!";
+document.getElementById("overlay").style.display = "flex";
 
     // ✅ Upload hier de best_lap voor iedere speler die toch een ronde gereden heeft
         // Upload scores naar Supabase
