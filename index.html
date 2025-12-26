@@ -351,7 +351,7 @@ canvas#game {
 
 
   // key mapping
-  const minigameKeys = {
+ const minigameKeys = {
   P1: { 
     left: ["q", "arrowleft"], 
     right: ["d", "arrowright"] 
@@ -586,12 +586,12 @@ function animateMinigame(pName){
     const DEADZONE = 0.25;
 
     let left =
-        keys[minigameKeys[pName].left] ||
-        (stick && stick.x < -DEADZONE);
+    minigameKeys[pName].left.some(k => keys[k]) ||
+    (stick && stick.x < -DEADZONE);
 
     let right =
-        keys[minigameKeys[pName].right] ||
-        (stick && stick.x > DEADZONE);
+    minigameKeys[pName].right.some(k => keys[k]) ||
+    (stick && stick.x > DEADZONE);
 
     // === PLANK CONTROLE ===
     let stickForce = 0;
