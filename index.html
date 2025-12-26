@@ -313,7 +313,11 @@ canvas#game {
     P1: {
       lane:"1", x:0,y:0,color:"cyan",
       angle: 0,
-      keys:{z:[0,-1],s:[0,1],q:[-1,0],d:[1,0]},
+      keys:{
+        z:[0,-1], s:[0,1], q:[-1,0], d:[1,0],      // AZERTY
+        arrowup:[0,-1], arrowdown:[0,1],           // pijltjes
+        arrowleft:[-1,0], arrowright:[1,0]
+      },
       started:false, lap:0, lapStart:0,
       totalTime:0, bestLap:null,
       lastTile:null, nextCheckpoint:0,
@@ -323,7 +327,11 @@ canvas#game {
     P2: {
       lane:"2", x:0,y:0,color:"yellow",
       angle: 0,
-      keys:{i:[0,-1],k:[0,1],j:[-1,0],l:[1,0]},
+      keys:{
+        i:[0,-1], k:[0,1], j:[-1,0], l:[1,0],       // letters
+        "8":[0,-1], "5":[0,1], "4":[-1,0], "6":[1,0] // NUMPAD (NumLock)
+      },
+
       started:false, lap:0, lapStart:0,
       totalTime:0, bestLap:null,
       lastTile:null, nextCheckpoint:0,
