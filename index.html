@@ -352,9 +352,15 @@ canvas#game {
 
   // key mapping
   const minigameKeys = {
-    P1: { left: "q", right: "d" },
-    P2: { left: "j", right: "l" }
-  };
+  P1: { 
+    left: ["q", "arrowleft"], 
+    right: ["d", "arrowright"] 
+  },
+  P2: { 
+    left: ["j", "4"], 
+    right: ["l", "6"] 
+  }
+};
 
   const minigameOverlay = document.getElementById("minigameOverlay");
 
