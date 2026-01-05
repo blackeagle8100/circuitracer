@@ -105,7 +105,7 @@ canvas#game {
 
 #minigameOverlay {
     position: fixed;
-    top: 0;              /* 👈 BELANGRIJK */
+    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
@@ -140,7 +140,7 @@ canvas#game {
     justify-content: center;
     margin: 0 10px; /* beetje ruimte tussen lap counter en HUD */
 }
-  
+
 .scoreboardButton {
     display: inline-block;
     padding: 8px 15px;
@@ -258,7 +258,7 @@ canvas#game {
   <div id="scoreboardButtonContainer">
     <a href="https://blackeagle8100.github.io/RacingBoard/" target="_blank" class="scoreboardButton">SCOREBOARD!</a>
   </div>
-  
+
 
  <!-- HUD gecentreerd -->
   <div id="hud">
@@ -344,21 +344,24 @@ canvas#game {
   // === MINIGAME SETTINGS ===
   // === MINIGAME SETTINGS ===
   const BALANCE_DURATION = 3; // seconden dat de speler moet balanceren
-  let PLANK_LENGTH = 300;  // pixels
+  let GLOBAL_PLANK_LENGTH = 220;
+ // let PLANK_LENGTH = 300;  // pixels
   const MAX_ANGLE = 35;       // max kanteling
-  const BALANCE_ZONE = 30;    // px rond midden waar het groen is
-  const GRAVITY = 300;        // pixels/sec^2
+  const BALANCE_ZONE = 30;    // px rond midden waar het groen is   // pixels/sec^2
+  const GRAVITY = 420;
+  const FRICTION = 0.995;
+  const BASE_PLANK = 220; // 👈 HIER
 
 
   // key mapping
  const minigameKeys = {
-  P1: { 
-    left: ["q", "arrowleft"], 
-    right: ["d", "arrowright"] 
+  P1: {
+    left: ["q", "arrowleft"],
+    right: ["d", "arrowright"]
   },
-  P2: { 
-    left: ["j", "4"], 
-    right: ["l", "6"] 
+  P2: {
+    left: ["j", "4"],
+    right: ["l", "6"]
   }
 };
 
@@ -487,11 +490,17 @@ function resizeMinigameCanvas(p){
     const canvas = mgCanvases[p];
 
     canvas.width  = panel.clientWidth - 12;
-    canvas.height = panel.clientHeight - 20; // iets hoger
+    canvas.height = panel.clientHeight - 20;
 
-    PLANK_LENGTH = Math.min(canvas.width * 0.9, 300);
+    // 🔑 eerlijk schalen op basis van groen veld
+    const green = findGreenFieldBounds();
+    const scaleX = document.getElementById("game").getBoundingClientRect().width / document.getElementById("game").width;
+
+    //GLOBAL_PLANK_LENGTH = green.width * scaleX * 0.35;
+
+    // safety clamp (extreme schermen)
+    GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
 }
-
 
 
 function resizeCanvas(){
@@ -510,6 +519,12 @@ function resizeCanvas(){
   canvas.style.width  = (gameWidth  * scale) + "px";
   canvas.style.height = (gameHeight * scale) + "px";
 
+  const green = findGreenFieldBounds();
+  const scaleX = canvas.getBoundingClientRect().width / canvas.width;
+
+  GLOBAL_PLANK_LENGTH = green.width * scaleX * 0.35;
+  GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
+  //const PLANK_LENGTH = GLOBAL_PLANK_LENGTH;
   positionMinigamePanel("P1");
   positionMinigamePanel("P2");
 
@@ -535,11 +550,12 @@ function startMinigame(pName){
     updateMinigameOverlay();
 
     state.plankAngle = 0;
-    state.ballX = -PLANK_LENGTH/2 + 10;
+    state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
     state.ballSpeed = 0;
     state.balanceTime = 0;
     state.completed = false;
-    state.lastTime = performance.now()/1000;
+
+    state.lastTime = performance.now();
 
     players[pName].inMinigame = true;
 
@@ -572,112 +588,89 @@ function checkMinigameOverlay(){
 
  // animate minigame
 
-
-function animateMinigame(pName){
+function animateMinigame(pName) {
+    const canvas = mgCanvases[pName];
+    const ctx = canvas.getContext("2d");
     const state = minigameState[pName];
-    if(!state.active) return;
+    const now = performance.now();
 
-    const tNow = performance.now() / 1000;
-    const dt = tNow - state.lastTime;
-    state.lastTime = tNow;
+    const dt = Math.min(0.05, (now - state.lastTime) / 1000);
+    state.lastTime = now;
 
-    // === INPUT ===
-    const stick = sticks[pName];
-    const DEADZONE = 0.25;
-
-    let left =
-    minigameKeys[pName].left.some(k => keys[k]) ||
-    (stick && stick.x < -DEADZONE);
-
-    let right =
-    minigameKeys[pName].right.some(k => keys[k]) ||
-    (stick && stick.x > DEADZONE);
-
-    // === PLANK CONTROLE ===
-    let stickForce = 0;
-
-    // 🎮 joystick
-    if (stick) {
-        stickForce = stick.x;
-
-        if (Math.abs(stickForce) < DEADZONE) {
-            stickForce = 0;
-        } else {
-            stickForce =
-                (Math.abs(stickForce) - DEADZONE) / (1 - DEADZONE)
-                * Math.sign(stickForce);
-        }
-    }
-
-    // ⌨️ keyboard fallback
-    if (left)  stickForce -= 1;
-    if (right) stickForce += 1;
-        
-    // rotatie
-    state.plankAngle += stickForce * 35 * dt;
-
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const angleRad = state.plankAngle * Math.PI / 180;
 
+    // === INPUT ===
+    const keyset = minigameKeys[pName];
+    let input = 0;
+    if (keyset.left.some(k => keys[k])) input -= 1;
+    if (keyset.right.some(k => keys[k])) input += 1;
+
+    state.plankAngle += input * 120 * dt;
+    state.plankAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, state.plankAngle));
+
     // === PHYSICS ===
-    state.ballSpeed += GRAVITY * Math.sin(angleRad) * dt;
-    state.ballSpeed *= 0.995;
+    const gravityScale = Math.min(1.3, Math.max(0.7, GLOBAL_PLANK_LENGTH / BASE_PLANK));
+    state.ballSpeed += GRAVITY * gravityScale * Math.sin(angleRad) * dt;
+    state.ballSpeed *= FRICTION;
     state.ballX += state.ballSpeed * dt;
 
-    // === PLANK RAND ===
-    const LIMIT = PLANK_LENGTH / 2 - 10;
-    if(state.ballX > LIMIT){
-        state.ballX = LIMIT;
-        state.ballSpeed *= -0.3;
-    }
-    if(state.ballX < -LIMIT){
-        state.ballX = -LIMIT;
-        state.ballSpeed *= -0.3;
-    }
-
     // === BALANCE CHECK ===
-    let ballColor = "orange";
+    const inZone = Math.abs(state.ballX) < BALANCE_ZONE;
+    if (inZone) state.balanceTime += dt;
+    else state.balanceTime = 0;
 
-    if(Math.abs(state.ballX) < BALANCE_ZONE){
-        state.balanceTime += dt;
-        ballColor = "green";
+    const timeLeft = Math.max(0, BALANCE_DURATION - state.balanceTime);
 
-        if(state.balanceTime >= BALANCE_DURATION){
-            state.completed = true;
-        }
-    } else {
-        state.balanceTime = 0;
-    }
-
-    // === STATUS TEXT ===
-    mgStatus[pName].textContent = state.completed
-        ? "Houd rechts om te verlaten"
-        : `Balanceren: ${(BALANCE_DURATION - state.balanceTime).toFixed(1)}s`;
-
-    // === DRAW ===
-    drawMinigame(pName, ballColor);
-
-    // === EXIT ===
-    if(state.completed && right){
-        const exit = findExitForLane(players[pName].lane);
-        if(exit){
-            players[pName].x = exit.x + 0.5;
-            players[pName].y = exit.y + 0.5;
-        }
-
+    if (state.balanceTime >= BALANCE_DURATION) {
+        state.completed = true;
         state.active = false;
         players[pName].inMinigame = false;
-        players[pName].lastTile = null;
-
-        const panel = document.getElementById(
-            pName === "P1" ? "panelP1" : "panelP2"
-        );
-        panel.style.display = "none";
-        panel.style.pointerEvents = "none";
-
-        updateMinigameOverlay();
+        document.getElementById(pName === "P1" ? "panelP1" : "panelP2").style.display = "none";
+        checkMinigameOverlay();
         return;
     }
+
+    // Clamp ball
+    const halfPlank = GLOBAL_PLANK_LENGTH / 2;
+    if (state.ballX < -halfPlank) { state.ballX = -halfPlank; state.ballSpeed = 0; }
+    if (state.ballX > halfPlank) { state.ballX = halfPlank; state.ballSpeed = 0; }
+
+    // === DRAW PLANK ===
+    ctx.save();
+    const pivotX = canvas.width / 2;
+    const pivotY = canvas.height / 2;
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(angleRad);
+
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(-halfPlank, 0);
+    ctx.lineTo(halfPlank, 0);
+    ctx.stroke();
+
+    // === DRAW BALL OP PLANK ===
+    const ballX = state.ballX;
+    const ballY = 0; // op plank
+    ctx.fillStyle = inZone ? "#00ff00" : "#ff8800";
+    ctx.beginPath();
+    ctx.arc(ballX, ballY - 14, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // === DRAW COUNTDOWN ONDER DE PLANK ===
+    ctx.fillStyle = "#fff";
+    ctx.font = `${Math.floor(canvas.height / 6)}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(
+        timeLeft.toFixed(1) + "s",
+        canvas.width / 2,
+        10 // 10px vanaf de top
+    );
 
     requestAnimationFrame(() => animateMinigame(pName));
 }
@@ -702,7 +695,7 @@ function drawMinigame(pName, ballColor){
   ctx.translate(pivotX, pivotY);
   ctx.rotate(state.plankAngle * Math.PI/180);
   ctx.fillStyle = "#aaa";
-  ctx.fillRect(-PLANK_LENGTH/2, -5, PLANK_LENGTH, 10);
+  //ctx.fillRect(-GLOBAL_PLANK_LENGTH/2, -5, GLOBAL_PLANK_LENGTH, 10);
   ctx.restore();
 
   // balpositie exact op plank
