@@ -250,57 +250,28 @@ canvas#game {
 
 
 @media (max-width: 900px) and (orientation: landscape) {
-
-  /* === GAME PRIORITY === */
-  body {
-    overflow: hidden;
-  }
-
-  /* Canvas zo groot mogelijk */
-  #gameContainer {
-    width: 100vw;
-    height: calc(100vh - var(--topbar-height));
-  }
-
-  /* === TOP HUD (minimal) === */
-  #topBar {
-    height: 40px;
-    font-size: 12px;
-  }
-
-  .stats {
-    min-width: auto;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  /* === JOYSTICKS AS OVERLAY === */
   #mobileControls {
     display: block;
     position: fixed;
-    inset: 0;
-    pointer-events: none; /* 👈 cruciaal */
+    bottom: 0; /* Stick container onderaan */
+    left: 0;
+    right: 0;
+    height: 30%; /* of wat past */
+    pointer-events: none;
     z-index: 20;
   }
 
   .stick {
     position: absolute;
-    bottom: 6%;
-    width: 140px;
-    height: 140px;
+    bottom: 5%; /* afstand vanaf container bottom */
+    width: 120px;
+    height: 120px;
     opacity: 0.6;
     pointer-events: auto;
   }
 
   #stickP1 { left: 5%; }
   #stickP2 { right: 5%; }
-
-  /* === VERBERG DESKTOP DINGEN === */
-  #desktopControls,
-  .sidebar,
-  .extraStats {
-    display: none;
-  }
 }
 
 
