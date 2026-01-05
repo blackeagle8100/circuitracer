@@ -347,22 +347,16 @@ canvas#game {
   </head>
 <body>
 
-  <div id="topBar">
-    <div id="centerBar">
-
-      <!-- LAPS -->
-      <div id="lapContainer">
-        Laps:
-        <input id="lapInput" type="number" value="3" min="3">
-      </div>
-
-    <!-- SCOREBOARD knop midden -->
-  <div id="scoreboardButtonContainer">
-    <a href="https://blackeagle8100.github.io/RacingBoard/" target="_blank" class="scoreboardButton">SCOREBOARD!</a>
+<div id="topBar">
+  <div id="lapContainer">
+    Laps:
+    <input id="lapInput" type="number" value="3" min="3">
   </div>
 
+  <a href="https://blackeagle8100.github.io/RacingBoard/" target="_blank" class="scoreboardButton">
+    SCOREBOARD!
+  </a>
 
- <!-- HUD gecentreerd -->
   <div id="hud">
     <div class="playerRow">
       <label for="nameP1">P1:</label>
@@ -376,14 +370,15 @@ canvas#game {
       <span id="statsP2" class="stats"></span>
     </div>
   </div>
+</div>
 
 
-  </div>
+
+<div id="gameWrapper">
+  <canvas id="game"></canvas>
+</div>
 
 
-  <div id="gameWrapper">
-    <canvas id="game"></canvas>
-  </div>
 
 
     <div id="minigameOverlay">
@@ -562,32 +557,24 @@ function positionMinigamePanel(pName){
     const scaleX = canvasRect.width / canvas.width;
     const scaleY = canvasRect.height / canvas.height;
 
-    // Panel grootte
-    const PANEL_W = Math.min(500, green.width * scaleX * 0.45); // 45% van groen
-    let PANEL_H = Math.min(350, green.height * scaleY * 0.6); // 60% van groen
-if(window.innerHeight < 600) PANEL_H = Math.min(300, green.height * scaleY * 0.7); // extra voor small screens
+    const PANEL_W = Math.min(500, green.width * scaleX * 0.45);
+    let PANEL_H = Math.min(350, green.height * scaleY * 0.6);
+    if(window.innerHeight < 600) PANEL_H = Math.min(300, green.height * scaleY * 0.7);
 
-
-    panel.style.width  = PANEL_W + "px";
+    panel.style.width = PANEL_W + "px";
     panel.style.height = PANEL_H + "px";
 
     const greenLeft = canvasRect.left + green.x * scaleX;
-    const TOPBAR_HEIGHT = 48;
+    const greenTop  = canvasRect.top + green.y * scaleY;
 
-    const greenTop = canvasRect.top + green.y * scaleY;
-
-// Verticaal centreren in het groene veld
-panel.style.top = greenTop + green.height * scaleY / 2 - PANEL_H / 2 + "px";
-
-
-    // Plaats P1 links van het midden van groen, P2 rechts van het midden
+    // Links/rechts van midden
     if(pName === "P1"){
         panel.style.left = greenLeft + green.width * scaleX * 0.25 - PANEL_W/2 + "px";
     } else {
         panel.style.left = greenLeft + green.width * scaleX * 0.75 - PANEL_W/2 + "px";
     }
 
-    // Verticaal centreren in het groene veld
+    // Verticaal centreren
     panel.style.top = greenTop + green.height * scaleY / 2 - PANEL_H/2 + "px";
 
     resizeMinigameCanvas(pName);
@@ -599,6 +586,7 @@ function resizeMinigameCanvas(p){
 
     canvas.width  = panel.clientWidth - 12;
     canvas.height = panel.clientHeight - 20;
+
 
     // 🔑 eerlijk schalen op basis van groen veld
     const green = findGreenFieldBounds();
