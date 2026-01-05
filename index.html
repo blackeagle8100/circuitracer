@@ -319,6 +319,12 @@ canvas#game {
 
   </head>
 <body>
+<div id="rotateWarning" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+     background:rgba(0,0,0,0.9); color:white; font-size:24px; display:flex;
+     justify-content:center; align-items:center; text-align:center; z-index:50;">
+    TURN YOUR PHONE TO PLAY THE GAME!
+</div>
+
 
 <div id="topBar">
   <div id="lapContainer">
@@ -520,6 +526,27 @@ canvas#game {
 
   let gameOver = false;
 
+function checkOrientation() {
+    const warning = document.getElementById("rotateWarning");
+    const gameWrapper = document.getElementById("gameWrapper");
+    const mobileControls = document.getElementById("mobileControls");
+
+    if(window.innerHeight > window.innerWidth){ // Portrait
+        warning.style.display = "flex";
+        gameWrapper.style.display = "none";
+        mobileControls.style.display = "none";
+    } else { // Landscape
+        warning.style.display = "none";
+        gameWrapper.style.display = "flex";
+        if(("ontouchstart" in window) || navigator.maxTouchPoints > 0){
+            mobileControls.style.display = "flex";
+        }
+        resizeCanvas(); // belangrijk om minigame panel te schalen
+    }
+}
+window.addEventListener("orientationchange", checkOrientation);
+window.addEventListener("resize", checkOrientation);
+checkOrientation(); // init
 
 
 function positionMinigamePanel(pName){
