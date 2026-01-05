@@ -30,29 +30,36 @@ h2 { display: none !important; }
 #topBar {
     width: 100%;
     height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     background: rgba(0,0,0,0.85);
     border-bottom: 2px solid #333;
-    padding: 0 10px;
+    display: flex;
+    justify-content: center; /* 👈 alles in het midden */
+    align-items: center;
     box-sizing: border-box;
-    z-index: 30;
 }
 
+
+#centerBar {
+    display: flex;
+    align-items: center;
+    gap: 20px;              /* ruimte tussen laps | scoreboard | hud */
+}
+
+
+
 /* laps links */
-#lapContainer {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: 14px;
+#lapContainer input {
+    width: 50px;
 }
 
 /* HUD gecentreerd */
+
 #hud {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     font-size: 14px;
-    text-align: center;
-    line-height: 1.2;
+    white-space: nowrap;
 }
 
 /* ===== GAME AREA ===== */
@@ -152,8 +159,30 @@ canvas#game {
     border-radius: 8px;
     text-decoration: none;
     box-shadow: 0 0 15px #ffff66;
-    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;w
 }
+
+.playerRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.playerRow label {
+    width: 28px;
+    text-align: right;
+}
+
+.playerRow input {
+    width: 60px;
+}
+
+
+.stats {
+    min-width: 420px;
+    font-family: monospace;
+}
+
 
 .scoreboardButton:hover {
     transform: scale(1.1);
@@ -247,11 +276,38 @@ canvas#game {
   </head>
 <body>
 
-<div id="topBar">
-  <!-- Laps links -->
-  <div id="lapContainer">
-    Laps:
-    <input id="lapInput" type="number" value="3" min="3" style="width:50px">
+  <div id="topBar">
+    <div id="centerBar">
+
+      <!-- LAPS -->
+      <div id="lapContainer">
+        Laps:
+        <input id="lapInput" type="number" value="3" min="3">
+      </div>
+
+      <!-- SCOREBOARD -->
+      <div id="scoreboardButtonContainer">
+        <a href="https://blackeagle8100.github.io/RacingBoard/"
+          target="_blank"
+          class="scoreboardButton">SCOREBOARD!</a>
+      </div>
+
+      <!-- HUD -->
+      <div id="hud">
+        <div class="playerRow">
+          <label>P1:</label>
+          <input type="text" id="nameP1" value="P1">
+          <span id="statsP1" class="stats"></span>
+        </div>
+
+        <div class="playerRow">
+          <label>P2:</label>
+          <input type="text" id="nameP2" value="P2">
+          <span id="statsP2" class="stats"></span>
+        </div>
+      </div>
+
+    </div>
   </div>
 
     <!-- SCOREBOARD knop midden -->
@@ -262,20 +318,26 @@ canvas#game {
 
  <!-- HUD gecentreerd -->
   <div id="hud">
-    <input type="text" id="nameP1" value="P1" style="width:60px">
-    <span id="statsP1"></span><br>
-    <input type="text" id="nameP2" value="P2" style="width:60px">
-    <span id="statsP2"></span>
+    <div class="playerRow">
+      <label for="nameP1">P1:</label>
+      <input type="text" id="nameP1" value="P1">
+      <span id="statsP1" class="stats"></span>
+    </div>
+
+    <div class="playerRow">
+      <label for="nameP2">P2:</label>
+      <input type="text" id="nameP2" value="P2">
+      <span id="statsP2" class="stats"></span>
+    </div>
   </div>
-</div>
 
 
   </div>
 
 
   <div id="gameWrapper">
-  <canvas id="game"></canvas>
-</div>
+    <canvas id="game"></canvas>
+  </div>
 
 
     <div id="minigameOverlay">
