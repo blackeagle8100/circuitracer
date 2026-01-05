@@ -558,7 +558,7 @@ function positionMinigamePanel(pName){
     const scaleY = canvasRect.height / canvas.height;
 
     const PANEL_W = Math.min(500, green.width * scaleX * 0.45);
-    let PANEL_H = Math.min(350, green.height * scaleY * 0.6);
+    let PANEL_H = Math.min(350, green.height * scaleY * 0.8);
     if(window.innerHeight < 600) PANEL_H = Math.min(300, green.height * scaleY * 0.7);
 
     panel.style.width = PANEL_W + "px";
