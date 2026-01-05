@@ -633,12 +633,20 @@ function animateMinigame(pName) {
     const timeLeft = Math.max(0, BALANCE_DURATION - state.balanceTime);
 
     if (state.balanceTime >= BALANCE_DURATION) {
-        state.completed = true;
-        state.active = false;
-        players[pName].inMinigame = false;
-        document.getElementById(pName === "P1" ? "panelP1" : "panelP2").style.display = "none";
-        checkMinigameOverlay();
-        return;
+      state.completed = true;
+      state.active = false;
+      players[pName].inMinigame = false;
+      document.getElementById(pName === "P1" ? "panelP1" : "panelP2").style.display = "none";
+
+      // ✅ Teleporteer speler naar de exit (<)
+      const exit = findExitForLane(players[pName].lane);
+      if (exit) {
+          players[pName].x = exit.x + 0.5;
+          players[pName].y = exit.y + 0.5;
+      }
+
+      checkMinigameOverlay();
+      return;
     }
 
     // Clamp ball
