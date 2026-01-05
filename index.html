@@ -602,12 +602,21 @@ function animateMinigame(pName) {
     const angleRad = state.plankAngle * Math.PI / 180;
 
     // === INPUT ===
-    const keyset = minigameKeys[pName];
+
     let input = 0;
+
+        // toetsenbord
+    const keyset = minigameKeys[pName];
     if (keyset.left.some(k => keys[k])) input -= 1;
     if (keyset.right.some(k => keys[k])) input += 1;
 
-    state.plankAngle += input * 120 * dt;
+    // joystick (mobile)
+    const s = sticks[pName];
+    input += s.x; // x is horizontaal
+
+
+    //update plankhoek
+    state.plankAngle += input * 120  * dt;
     state.plankAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, state.plankAngle));
 
     // === PHYSICS ===
