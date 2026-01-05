@@ -249,6 +249,7 @@ canvas#game {
 /* geen overlay joysticks */
 
 
+
 @media (max-width: 900px) and (orientation: landscape) {
   #mobileControls {
     display: block;
@@ -273,6 +274,7 @@ canvas#game {
   #stickP1 { left: 5%; }
   #stickP2 { right: 5%; }
 }
+
 
 
 
@@ -677,10 +679,13 @@ function animateMinigame(pName) {
     if (keyset.left.some(k => keys[k])) input -= 1;
     if (keyset.right.some(k => keys[k])) input += 1;
 
+
     // joystick (mobile)
     const s = sticks[pName];
     input += s.x; // x is horizontaal
 
+    console.log(pName, "INPUT:", input); // ✅ hier werkt het
+    console.log("ier werkt et");
 
     //update plankhoek
     state.plankAngle += input * 120  * dt;
