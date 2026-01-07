@@ -556,7 +556,7 @@ const ctx = canvas.getContext("2d");
   "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
   "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
   "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
-  "|11=22***||**||**||**||**||**||**||**||**||**||SSSSS|",
+  "|11=22***||**||**||**||**||**||**||**||**||**||SS=SS|",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "|11============================NNNN===============22|",
@@ -590,7 +590,7 @@ const ctx = canvas.getContext("2d");
   "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
   "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
   "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
-  "|11=22***||**||**||**||**||**||**||**||**||**||SSSSS|",
+  "|11=22***||**||**||**||**||**||**||**||**||**||SS=SS|",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "|11============================NNNN===============22|",
@@ -815,22 +815,58 @@ function resizeCanvas() {
     // Start minigame voor speler p (P1 of P2)
 
 
-function startMinigame(pName, name){
+function startMinigame(pName, tile) {
     if(players[pName].inMinigame) return;
 
-    switch(name){
-        case "balance":
-            startBalanceMinigame(pName);
-            break;
+    const minigamesToStart = [];
 
-        case "loop":
-            startLoopingMinigame(pName);
+    // Bepaal welke minigame(s) we moeten starten op basis van tile
+    switch(tile){
+        case ">B": // Balance
+            minigamesToStart.push("balance");
             break;
-
+        case ">L": // Looping
+            minigamesToStart.push("looping");
+            break;
+        case ">J": // Jump
+            minigamesToStart.push("jump");
+            break;
         default:
-            console.warn("Unknown minigame:", name);
+            console.warn("Onbekende minigame tile:", tile);
+            return;
+    }
+
+
+function runMinigamesSequence(pName, sequence) {
+    if(sequence.length === 0){
+        // Alle minigames voltooid
+        players[pName].inMinigame = false;
+        checkMinigameOverlay();
+        return;
+    }
+
+    const current = sequence.shift(); // eerste minigame
+    switch(current){
+        case "balance":
+            startBalanceMinigame(pName, () => runMinigamesSequence(pName, sequence));
+            break;
+        case "looping":
+            startLoopingMinigame(pName, () => runMinigamesSequence(pName, sequence));
+            break;
+        case "jump":
+            startJumpMinigame(pName, () => runMinigamesSequence(pName, sequence));
+            break;
     }
 }
+
+    // Set speler in minigame
+    players[pName].inMinigame = true;
+    minigameOverlay.style.display = "block";
+
+    // Start minigames één voor één
+    runMinigamesSequence(pName, minigamesToStart);
+}
+
 
 
 
@@ -861,38 +897,76 @@ function startLoopingMinigame(pName){
     positionMinigamePanel(pName);
 
     requestAnimationFrame(() => animateLoopingMinigame(pName));
+
 }
 
 
 
-function startBalanceMinigame(pName){
+
+function startJumpMinigame(pName, callback){
     const state = minigameState[pName];
     if(state.active) return;
-    state.type = "balance";
-    state.active = true;
-    updateMinigameOverlay();
 
+    state.active = true;
     state.plankAngle = 0;
     state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
     state.ballSpeed = 0;
     state.balanceTime = 0;
     state.completed = false;
-
     state.lastTime = performance.now();
 
-    players[pName].inMinigame = true;
-
-    const panel = document.getElementById(
-        pName === "P1" ? "panelP1" : "panelP2"
-    );
-
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
     panel.style.display = "flex";
-    panel.style.pointerEvents = "auto";
-
     positionMinigamePanel(pName);
 
-    requestAnimationFrame(() => animateBalanceMinigame(pName));
+    // Animatie loop
+    function anim(){
+        if(!state.active){
+            panel.style.display = "none";
+            players[pName].inMinigame = false;
+            if(callback) callback(); // ga naar volgende minigame
+            return;
+        }
+        animateMinigame(pName);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
 }
+
+
+
+
+function startBalanceMinigame(pName, callback){
+    const state = minigameState[pName];
+    if(state.active) return;
+
+    state.active = true;
+    state.plankAngle = 0;
+    state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
+    state.ballSpeed = 0;
+    state.balanceTime = 0;
+    state.completed = false;
+    state.lastTime = performance.now();
+
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    panel.style.display = "flex";
+    positionMinigamePanel(pName);
+
+    // Animatie loop
+    function anim(){
+        if(!state.active){
+            panel.style.display = "none";
+            players[pName].inMinigame = false;
+            if(callback) callback(); // ga naar volgende minigame
+            return;
+        }
+        animateMinigame(pName);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+}
+
+
 
 
 
@@ -1320,64 +1394,53 @@ function updatePlayer(p, dt){
 
   // === Check triggers ===
 
-
-function checkTriggers(p, now, pName) {
-    if (p.inMinigame) return; // ⛔ pauzeer speler als in minigame
+function checkTriggers(p, now, pName){
+    if(p.inMinigame) return;
 
     const tx = Math.floor(p.x);
     const ty = Math.floor(p.y);
-    const tile = tileAt(tx, ty);
+    let tile = tileAt(tx, ty);
 
-    // ===== MINIGAME TRIGGER =====
-    // Alleen triggeren als we net op een '>' tile landen
-    if (tile === ">" && p.lastTile !== ">") {
-        const nextTile = tileAt(tx + 1, ty);
-
-        if (nextTile === "B") {
-            startMinigame(pName, "balance");
-        } else if (nextTile === "L" || nextTile === "I") {
-            startMinigame(pName, "loop");
+    // === MINIGAME TRIGGER ===
+    if(tile === ">" && p.lastTile !== tile){
+        const nextTile = tileAt(tx + 1, ty); // tile achter '>'
+        switch(nextTile){
+            case "B": startMinigame(pName, ">B"); break;
+            case "L": startMinigame(pName, ">L"); break;
+            case "J": startMinigame(pName, ">J"); break;
         }
     }
 
-    // ===== CHECKPOINTS =====
-    const nextCheckpointGroup = checkpoints[p.lane][p.nextCheckpoint];
-    if (nextCheckpointGroup) {
-        // loop door alle tegels in het checkpoint
-        for (const cpTile of nextCheckpointGroup) {
-            if (tx === cpTile.x && ty === cpTile.y) {
-                p.nextCheckpoint++;
-                break;
-            }
-        }
+    // === CHECKPOINTS ===
+    const next = checkpoints[p.lane][p.nextCheckpoint];
+    if(next && next.some(t => t.x === tx && t.y === ty)){
+        p.nextCheckpoint++;
     }
 
-    // ===== START / FINISH =====
-    if (tile === "S" && p.lastTile !== "S") {
-        if (!p.started) {
-            // Eerste keer starten
+    // === START / FINISH ===
+    if(tile === "S" && p.lastTile !== "S"){
+        if(!p.started){
             p.started = true;
             p.lapStart = now;
             p.lap = 0;
             p.nextCheckpoint = 0;
-        } else if (p.nextCheckpoint === checkpoints[p.lane].length) {
-            // Ronde voltooid
+        } else if(p.nextCheckpoint === checkpoints[p.lane].length){
             const lapTime = now - p.lapStart;
             p.lap++;
             p.lapStart = now;
             p.nextCheckpoint = 0;
-            if (!p.bestLap || lapTime < p.bestLap) p.bestLap = lapTime;
+            if(!p.bestLap || lapTime < p.bestLap) p.bestLap = lapTime;
 
             const totalLaps = parseInt(document.getElementById("lapInput").value, 10);
-            if (p.lap >= totalLaps && !p.finishTime) {
+            if(p.lap >= totalLaps && !p.finishTime){
                 p.finishTime = now;
             }
         }
     }
 
-    // ===== Update lastTile =====
     p.lastTile = tile;
 }
+
 
 
     // ===== CHECKPOINTS =====
@@ -1419,35 +1482,37 @@ function checkTriggers(p, now, pName) {
 
 
   // === Tekenen ===
-  function drawTrack(){
-    for(let y=0;y<track.length;y++){
-      for(let x=0;x<track[y].length;x++){
-        switch(track[y][x]){
-          case "|": ctx.fillStyle="#b30000"; break;
-          case "1": case "2": ctx.fillStyle="#555"; break;
-          case "=": ctx.fillStyle="#777"; break;
-          case "G": ctx.fillStyle="green"; break;
-          case "C":
-            let active=false;
-            for(const p of Object.values(players)){
-              const cp = checkpoints[p.lane][p.nextCheckpoint];
-              if(cp && cp.some(t=>t.x===x && t.y===y)){ active=true; break; }
+function drawTrack() {
+    for (let y = 0; y < track.length; y++) {
+        for (let x = 0; x < track[y].length; x++) {
+            const tile = track[y][x];
+            let color;
+
+            if (tile === "S") color = "white";       // start = wit
+            else if (tile === ">") color = "#ff9900"; // trigger = geel-oranje
+            else if (tile === "<") color = "#39ff14"; // exit = neon groen
+            else {
+                switch(tile) {
+                    case "|": color = "#b30000"; break;
+                    case "1": case "2": color = "#555"; break;
+                    case "=": color = "#777"; break;
+                    case "G": color = "green"; break;
+                    case "C": color = "purple"; break;
+                    case "*": case "%": color = "white"; break;
+                    case "H": color = "cyan"; break;
+                    case "B": color = "blue"; break;   // balance
+                    case "L": color = "red"; break;    // looping
+                    case "J": color = "purple"; break; // jump
+                    default: color = "#777";
+                }
             }
-            ctx.fillStyle=active?"green":"purple";
-            break;
-          case "S": ctx.fillStyle="white"; break;
-          case "*": case "%": ctx.fillStyle="white"; break;
-          case ">": case "<": case "O": ctx.fillStyle="orange"; break;
-          case "N": ctx.fillStyle="#000"; break;
-          case "Y": ctx.fillStyle="yellow"; break;
-          case "H": ctx.fillStyle="cyan"; break;
-          case "B": ctx.fillStyle="#999"; break;
-          default: ctx.fillStyle="#777";
+
+            ctx.fillStyle = color;
+            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
-        ctx.fillRect(x*TILE_SIZE,y*TILE_SIZE,TILE_SIZE,TILE_SIZE);
-      }
     }
-  }
+}
+
 function drawPlayers() {
     for (const [key, p] of Object.entries(players)) {
         const sprite = carSprites[key];
