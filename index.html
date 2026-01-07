@@ -464,11 +464,7 @@ canvas#game {
   const checkpoints = { "1": [], "2": [] };
   const used = new Set();
   const boosts = { P1: false, P2: false };
-  const hasTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 
-  if (!hasTouch) {
-  document.getElementById("mobileControls").style.display = "none";
-}
 
   document.getElementById("boostP1").addEventListener("mousedown",()=>boosts.P1=true);
   document.getElementById("boostP1").addEventListener("mouseup",()=>boosts.P1=false);
@@ -687,7 +683,13 @@ canvas#game {
     GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
 }
 
+function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
+
+
+const isMobile = isMobileDevice();
 
 
 function checkOrientation() {
@@ -695,20 +697,18 @@ function checkOrientation() {
     const gameWrapper = document.getElementById("gameWrapper");
     const mobileControls = document.getElementById("mobileControls");
 
-    if(window.innerHeight > window.innerWidth && hasTouch){ // Portrait op touch
+    if (isMobile && window.innerHeight > window.innerWidth) {
+        // Mobiel in portrait → waarschuw
         warning.style.display = "flex";
         gameWrapper.style.display = "none";
         mobileControls.style.display = "none";
-    } else { // Landscape of desktop
+    } else {
+        // Landscape of desktop → toon game
         warning.style.display = "none";
         gameWrapper.style.display = "flex";
-        if(hasTouch){
-            mobileControls.style.display = "flex";
-        }
-        resizeCanvas();
+        mobileControls.style.display = isMobile ? "flex" : "none";
     }
 }
-
 
 function resizeCanvas(){
   const gameWidth  = track[0].length * TILE_SIZE;
@@ -738,8 +738,11 @@ function resizeCanvas(){
 }
 
 
- window.addEventListener("orientationchange", resizeCanvas);
- window.addEventListener("resize", resizeCanvas);
+
+ checkOrientation();
+ window.addEventListener("resize", checkOrientation);
+ window.addEventListener("orientationchange", checkOrientation);
+
   resizeCanvas();
 
 
