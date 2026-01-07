@@ -1283,10 +1283,12 @@ window.uploadEndScores = function() {
 /* === PLAYER NAME PERSISTENCE === */
 const nameInputP1 = document.getElementById("nameP1");
 const nameInputP2 = document.getElementById("nameP2");
+const lapcount = document.getElementsByName("LapInput");
 
 // Load saved names
 const savedP1 = localStorage.getItem("circuitracer_name_p1");
 const savedP2 = localStorage.getItem("circuitracer_name_p2");
+const savedLaps = localStorage.getItem("circuitracer_laps");
 
 if (savedP1) nameInputP1.value = savedP1;
 if (savedP2) nameInputP2.value = savedP2;
@@ -1299,6 +1301,18 @@ nameInputP1.addEventListener("input", () => {
 nameInputP2.addEventListener("input", () => {
     localStorage.setItem("circuitracer_name_p2", nameInputP2.value);
 });
+    
+lapInput.addEventListener("change", () => {
+    let value = parseInt(lapInput.value, 10);
+
+    if (isNaN(value) || value < 1) value = 1;
+    if (value > 99) value = 99;
+
+    lapInput.value = value;
+    localStorage.setItem("circuitracer_laps", value);
+});
+
+
 </script>
 
 </body>
