@@ -1565,37 +1565,39 @@ function drawPlayers() {
 
 
 
-
-
-
 function drawHUD() {
-    const laps = +document.getElementById("lapInput").value;
+    const laps = parseInt(document.getElementById("lapInput").value, 10);
     const now = performance.now() / 1000;
 
-    const p1CurrentLap = players.P1.started ? (now - players.P1.lapStart) : 0;
-    const p2CurrentLap = players.P2.started ? (now - players.P2.lapStart) : 0;
+    // P1 stats
+    const p1 = players.P1;
+    const p1Stats = [];
+    p1Stats.push(`Lap: ${p1.lap}/${laps}`);
+    p1Stats.push(`Best: ${fmt(p1.bestLap)}`);
+    if (p1.started) p1Stats.push(`Current: ${fmt(now - p1.lapStart)}`);
+    document.getElementById("statsP1").textContent = p1Stats.join(" | ");
 
-    // Alleen de spans updaten, input blijft intact
-    document.getElementById("statsP1").textContent =
-        `Lap ${players.P1.lap}/${laps} | Current: ${fmt(p1CurrentLap)} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}`;
-
-    document.getElementById("statsP2").textContent =
-        `Lap ${players.P2.lap}/${laps} | Current: ${fmt(p2CurrentLap)} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}`;
+    // P2 stats
+    const p2 = players.P2;
+    const p2Stats = [];
+    p2Stats.push(`Lap: ${p2.lap}/${laps}`);
+    p2Stats.push(`Best: ${fmt(p2.bestLap)}`);
+    if (p2.started) p2Stats.push(`Current: ${fmt(now - p2.lapStart)}`);
+    document.getElementById("statsP2").textContent = p2Stats.join(" | ");
 }
 
   // === Loop ===
+
 let lastTime = performance.now();
 let frameCount = 0;
+let gameOver = false;
 
-
-
-
-function loop(now){
+function loop(now) {
+    if (!now) now = performance.now();
     const dt = (now - lastTime) / 1000;
     lastTime = now;
 
-    if(!gameOver){
-
+    if (!gameOver) {
         // === Update spelers (pauzeert automatisch in minigame) ===
         updatePlayer(players.P1, dt);
         updatePlayer(players.P2, dt);
@@ -1607,12 +1609,12 @@ function loop(now){
         checkTriggers(players.P2, currentTime, "P2");
 
         // === Update totale tijd (niet in minigame) ===
-       if(players.P1.started) {
-    players.P1.totalTime += dt;
-}
-if(players.P2.started) {
-    players.P2.totalTime += dt;
-}
+        if (players.P1.started && !players.P1.inMinigame) {
+            players.P1.totalTime += dt;
+        }
+        if (players.P2.started && !players.P2.inMinigame) {
+            players.P2.totalTime += dt;
+        }
 
         // === Tekenen ===
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1620,42 +1622,40 @@ if(players.P2.started) {
         drawPlayers();
         drawHUD();
 
-        // === Finish check (niet elke frame) ===
+        // === Finish check elke 20 frames om performance te sparen ===
         frameCount++;
-        if(frameCount >= 20){
+        if (frameCount >= 20) {
             frameCount = 0;
 
-            // spelers die gefinisht zijn
             const finishedPlayers = Object.entries(players)
                 .filter(([_, p]) => p.finishTime != null);
 
-            if(finishedPlayers.length > 0){
-    // laagste finishTime wint
-    finishedPlayers.sort((a, b) =>
-        a[1].finishTime - b[1].finishTime
-    );
+            if (finishedPlayers.length > 0) {
+                // Sorteer op snelste finish
+                finishedPlayers.sort((a, b) => a[1].finishTime - b[1].finishTime);
+                const winnerKey = finishedPlayers[0][0]; // "P1" of "P2"
 
-    const winnerKey = finishedPlayers[0][0]; // "P1" of "P2"
+                const winnerName =
+                    document.getElementById(
+                        winnerKey === "P1" ? "nameP1" : "nameP2"
+                    ).value || winnerKey;
 
-const winnerName =
-    document.getElementById(
-        winnerKey === "P1" ? "nameP1" : "nameP2"
-    ).value || winnerKey;
+                gameOver = true;
+                document.getElementById("winnerText").textContent = winnerName + " WINS!";
+                document.getElementById("overlay").style.display = "flex";
 
-gameOver = true;
-document.getElementById("winnerText").textContent =
-    winnerName + " WINS!";
-document.getElementById("overlay").style.display = "flex";
-
-    // ✅ Upload hier de best_lap voor iedere speler die toch een ronde gereden heeft
-        // Upload scores naar Supabase
-    uploadEndScores();
-}
+                // ✅ Upload best laps voor beide spelers
+                uploadEndScores();
+            }
         }
     }
 
     requestAnimationFrame(loop);
 }
+
+// Start de game-loop
+lastTime = performance.now();
+requestAnimationFrame(loop);
 
 
 
