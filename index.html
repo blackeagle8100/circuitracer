@@ -836,6 +836,14 @@ function startMinigame(pName, tile) {
             return;
     }
 
+    // ✅ Set speler in minigame
+    players[pName].inMinigame = true;
+    minigameOverlay.style.display = "block";
+
+    // ✅ Start minigames één voor één
+    runMinigamesSequence(pName, minigamesToStart);
+}
+
 
 function runMinigamesSequence(pName, sequence) {
     if(sequence.length === 0){
@@ -865,7 +873,7 @@ function runMinigamesSequence(pName, sequence) {
 
     // Start minigames één voor één
     runMinigamesSequence(pName, minigamesToStart);
-}
+
 
 
 
