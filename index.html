@@ -445,6 +445,12 @@ canvas#game {
   let track = null;
     // Minigame instellingen
   // === MINIGAME SETTINGS ===
+  // Map van trigger tiles naar minigames
+  const minigameTiles = {
+      ">B": "balance",
+      ">L": "loop"
+  };
+
   // === MINIGAME SETTINGS ===
   const BALANCE_DURATION = 3; // seconden dat de speler moet balanceren
   let GLOBAL_PLANK_LENGTH = 220;
@@ -458,6 +464,11 @@ canvas#game {
   const checkpoints = { "1": [], "2": [] };
   const used = new Set();
   const boosts = { P1: false, P2: false };
+  const hasTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+
+  if (!hasTouch) {
+  document.getElementById("mobileControls").style.display = "none";
+}
 
   document.getElementById("boostP1").addEventListener("mousedown",()=>boosts.P1=true);
   document.getElementById("boostP1").addEventListener("mouseup",()=>boosts.P1=false);
@@ -674,6 +685,28 @@ canvas#game {
 
     // safety clamp (extreme schermen)
     GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
+}
+
+
+
+
+function checkOrientation() {
+    const warning = document.getElementById("rotateWarning");
+    const gameWrapper = document.getElementById("gameWrapper");
+    const mobileControls = document.getElementById("mobileControls");
+
+    if(window.innerHeight > window.innerWidth && hasTouch){ // Portrait op touch
+        warning.style.display = "flex";
+        gameWrapper.style.display = "none";
+        mobileControls.style.display = "none";
+    } else { // Landscape of desktop
+        warning.style.display = "none";
+        gameWrapper.style.display = "flex";
+        if(hasTouch){
+            mobileControls.style.display = "flex";
+        }
+        resizeCanvas();
+    }
 }
 
 
@@ -1203,10 +1236,12 @@ function checkTriggers(p, now, pName){
 
 
 
-    // === MINIGAME TRIGGER (EERST!) ===
-
-    if(tile === ">" && p.lastTile !== ">" && !p.inMinigame){
-    startMinigame(pName, currentTrack.minigame);
+    // === MINIGAME TRIGGER ===
+    for(const [symbol, game] of Object.entries(minigameTiles)){
+        if(tile.startsWith(symbol) && p.lastTile !== symbol && !p.inMinigame){
+            startMinigame(pName, game);
+            break; // maar 1 minigame tegelijk
+        }
     }
 
     // === CHECKPOINTS ===
@@ -1388,13 +1423,9 @@ document.getElementById("overlay").style.display = "flex";
     requestAnimationFrame(loop);
 }
 
-// Verberg mobile controls op apparaten zonder touch
-const hasTouch =
-  ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 
-if (!hasTouch) {
-  document.getElementById("mobileControls").style.display = "none";
-}
+
+
   </script>
 
 <script type="module">
