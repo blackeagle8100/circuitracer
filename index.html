@@ -1279,5 +1279,27 @@ window.uploadEndScores = function() {
 </script>
 
 
+<script>
+/* === PLAYER NAME PERSISTENCE === */
+const nameInputP1 = document.getElementById("nameP1");
+const nameInputP2 = document.getElementById("nameP2");
+
+// Load saved names
+const savedP1 = localStorage.getItem("circuitracer_name_p1");
+const savedP2 = localStorage.getItem("circuitracer_name_p2");
+
+if (savedP1) nameInputP1.value = savedP1;
+if (savedP2) nameInputP2.value = savedP2;
+
+// Save on change
+nameInputP1.addEventListener("input", () => {
+    localStorage.setItem("circuitracer_name_p1", nameInputP1.value);
+});
+
+nameInputP2.addEventListener("input", () => {
+    localStorage.setItem("circuitracer_name_p2", nameInputP2.value);
+});
+</script>
+
 </body>
   </html>
