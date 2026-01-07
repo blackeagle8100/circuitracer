@@ -878,13 +878,7 @@ function runMinigamesSequence(pName, sequence) {
 
 
 
-function startLoopingMinigame(pName){
-    boosts[pName] = false;
-    const state = minigameState[pName];
-    if(state.active) return;
 
-    state.active = true;
-    state.type = "loop";
 
     updateMinigameOverlay();
 
@@ -910,6 +904,69 @@ function startLoopingMinigame(pName){
 
 
 
+
+
+
+
+
+
+function startBalanceMinigame(pName, callback){
+    const state = minigameState[pName];
+    if(state.active) return;
+    state.active = true;
+    state.plankAngle = 0;
+    state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
+    state.ballSpeed = 0;
+    state.balanceTime = 0;
+    state.completed = false;
+    state.lastTime = performance.now();
+
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    panel.style.display = "flex";
+    positionMinigamePanel(pName);
+
+    function anim() {
+        if(!state.active){
+            panel.style.display = "none";
+            players[pName].inMinigame = false;
+            if(callback) callback();
+            return;
+        }
+        animateBalanceMinigame(pName);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+}
+
+
+
+function startLoopingMinigame(pName, callback){
+    const state = minigameState[pName];
+    if(state.active) return;
+
+    state.active = true;
+    state.type = "loop";
+    state.angle = -90;
+    state.speed = 0;
+    state.completed = false;
+    state.lastTime = performance.now();
+
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    panel.style.display = "flex";
+    positionMinigamePanel(pName);
+
+    function anim(){
+        if(!state.active){
+            panel.style.display = "none";
+            players[pName].inMinigame = false;
+            if(callback) callback();
+            return;
+        }
+        animateLoopingMinigame(pName);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+}
 
 function startJumpMinigame(pName, callback){
     const state = minigameState[pName];
@@ -940,42 +997,6 @@ function startJumpMinigame(pName, callback){
     }
     requestAnimationFrame(anim);
 }
-
-
-
-
-function startBalanceMinigame(pName, callback){
-    const state = minigameState[pName];
-    if(state.active) return;
-
-    state.active = true;
-    state.plankAngle = 0;
-    state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
-    state.ballSpeed = 0;
-    state.balanceTime = 0;
-    state.completed = false;
-    state.lastTime = performance.now();
-
-    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
-    panel.style.display = "flex";
-    positionMinigamePanel(pName);
-
-    // Animatie loop
-    function anim(){
-        if(!state.active){
-            panel.style.display = "none";
-            players[pName].inMinigame = false;
-            if(callback) callback(); // ga naar volgende minigame
-            return;
-        }
-        animateMinigame(pName);
-        requestAnimationFrame(anim);
-    }
-    requestAnimationFrame(anim);
-}
-
-
-
 
 
 
