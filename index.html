@@ -278,22 +278,7 @@ canvas#game {
 
 
 
-@media (orientation: portrait) {
 
-  body {
-    overflow: hidden;
-  }
-
-  #rotateWarning {
-    display: flex;
-  }
-
-  #gameContainer,
-  #topBar,
-  #mobileControls {
-    display: none;
-  }
-}
 
 
 @media (max-width: 600px) and (orientation: landscape) {
@@ -446,10 +431,7 @@ canvas#game {
     // Minigame instellingen
   // === MINIGAME SETTINGS ===
   // Map van trigger tiles naar minigames
-  const minigameTiles = {
-      ">B": "balance",
-      ">L": "loop"
-  };
+
 
   // === MINIGAME SETTINGS ===
   const BALANCE_DURATION = 3; // seconden dat de speler moet balanceren
@@ -534,6 +516,9 @@ canvas#game {
     lastTime:0
   }
 };
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
   //GAMESETTINGS
   const TILE_SIZE = 16;
@@ -633,41 +618,66 @@ canvas#game {
 
   let gameOver = false;
   let currentTable = "LVL1";
-  function selectTrack(name){
-      currentTrack = tracks[name];
-      track = currentTrack.map;
-      currentTable = name;
 
-      document.getElementById("trackMenu").style.display = "none";
 
-      initTrackData();
-      findStart();
-      resizeCanvas();
 
-      lastTime = performance.now();
-      requestAnimationFrame(loop); // ✅ HIER starten
 
-    /* ===============================
-       RESET SPELER-TRACK-STATE
-       =============================== */
 
-    for(const p of Object.values(players)){
-        p.lastTile = null;
-        p.nextCheckpoint = 0;
-        p.started = false;
-        p.lap = 0;
-        p.totalTime = 0;
-        p.bestLap = null;
-        p.finishTime = null;
-        p.inMinigame = false;
+
+
+
+
+function selectTrack(name){
+
+        used.clear();
+    checkpoints["1"].length = 0;
+    checkpoints["2"].length = 0;
+
+    currentTrack = tracks[name];
+    track = currentTrack.map;
+    currentTable = name;
+
+    document.getElementById("trackMenu").style.display = "none";
+
+    initTrackData();   // ← bouwt checkpoints[]
+    findStart();
+    resizeCanvas();
+    checkOrientation();
+
+
+    // ✅ HIER PLAATS JE DE CODE
+    const trackCenter = {
+        x: track[0].length / 2,
+        y: track.length / 2
+    };
+
+    for (const lane of ["1", "2"]) {
+        checkpoints[lane].sort((a, b) => {
+            const ca = checkpointCenter(a);
+            const cb = checkpointCenter(b);
+            return Math.atan2(ca.y - trackCenter.y, ca.x - trackCenter.x)
+                 - Math.atan2(cb.y - trackCenter.y, cb.x - trackCenter.x);
+        });
+
+        while (true) {
+            const c = checkpointCenter(checkpoints[lane][0]);
+            if (c.x > trackCenter.x && c.y > trackCenter.y) break;
+            checkpoints[lane].push(checkpoints[lane].shift());
+        }
     }
 
-    /* ===============================
-       TRACK-AFHANKELIJKE UI
-       =============================== */
-
-    resizeCanvas();
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
 }
+
+
+
+
+
+
+function resizeMinigameCanvas(p){
+    const panel = document.getElementById(p === "P1" ? "panelP1" : "panelP2");
+    const canvas = mgCanvases[p];
 
     canvas.width  = panel.clientWidth - 12;
     canvas.height = panel.clientHeight - 20;
@@ -683,13 +693,11 @@ canvas#game {
     GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
 }
 
-function isMobileDevice() {
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
 
 
-
-const isMobile = isMobileDevice();
+const isMobile =
+    ("ontouchstart" in window) &&
+    window.matchMedia("(max-width: 900px)").matches;
 
 
 function checkOrientation() {
@@ -739,11 +747,10 @@ function resizeCanvas(){
 
 
 
- checkOrientation();
  window.addEventListener("resize", checkOrientation);
  window.addEventListener("orientationchange", checkOrientation);
 
-  resizeCanvas();
+
 
 
 
@@ -846,7 +853,9 @@ function checkMinigameOverlay(){
 
 
   // MINIGAME LOOPING
-function animateLoopingMinigame(pName){
+
+
+  function animateLoopingMinigame(pName){
     const canvas = mgCanvases[pName];
     const ctx = canvas.getContext("2d");
     const state = minigameState[pName];
@@ -857,11 +866,12 @@ function animateLoopingMinigame(pName){
 
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // INPUT
+    // === INPUT ===
     let input = 0;
     if(minigameKeys[pName].left.some(k => keys[k])) input -= 1;
     if(minigameKeys[pName].right.some(k => keys[k])) input += 1;
 
+    // update angle op basis van input
     state.angle += input * 120 * dt;
 
     // BOOST
@@ -869,20 +879,20 @@ function animateLoopingMinigame(pName){
         state.speed += 600 * dt;
     }
 
-    // GRAVITY
+    // GRAVITY / physics
     state.speed -= 400 * dt;
     state.speed *= 0.98;
 
     state.angle += state.speed * dt;
     state.angle = Math.max(-90, Math.min(90, state.angle));
 
-    // DRAW LOOP
+    // === DRAW LOOP ===
     ctx.save();
     ctx.translate(canvas.width/2, canvas.height/2);
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.arc(0, 0, 120, Math.PI, 0);
+    ctx.arc(0, 0, 120, Math.PI, 0); // halve cirkel
     ctx.stroke();
 
     // DRAW BALL
@@ -899,9 +909,27 @@ function animateLoopingMinigame(pName){
     ctx.fill();
     ctx.restore();
 
-    // SUCCESS
+    // === CHECK SUCCESS ===
     if(state.angle >= 85){
-        completeMinigame(pName);
+        // minigame voltooid
+        state.completed = true;
+        state.active = false;
+        players[pName].inMinigame = false;
+
+        // verberg panel
+        document.getElementById(
+            pName === "P1" ? "panelP1" : "panelP2"
+        ).style.display = "none";
+
+        // teleport naar exit '<'
+        const exit = findExitForLane(players[pName].lane);
+        if (exit) {
+            players[pName].x = exit.x + 0.5;
+            players[pName].y = exit.y + 0.5;
+        }
+
+        // check overlay
+        checkMinigameOverlay();
         return;
     }
 
@@ -1046,20 +1074,7 @@ function animateBalanceMinigame(pName) {
     for(const t of group){ sx+=t.x+0.5; sy+=t.y+0.5; }
     return {x:sx/group.length, y:sy/group.length};
   }
-  const trackCenter = {x: track[0].length/2, y: track.length/2};
 
-  for(const lane of ["1","2"]){
-    checkpoints[lane].sort((a,b)=>{
-      const ca=checkpointCenter(a), cb=checkpointCenter(b);
-      return Math.atan2(ca.y-trackCenter.y, ca.x-trackCenter.x)
-          - Math.atan2(cb.y-trackCenter.y, cb.x-trackCenter.x);
-    });
-    while(true){
-      const c = checkpointCenter(checkpoints[lane][0]);
-      if(c.x>trackCenter.x && c.y>trackCenter.y) break;
-      checkpoints[lane].push(checkpoints[lane].shift());
-    }
-  }
 
 
 
@@ -1103,7 +1118,8 @@ function animateBalanceMinigame(pName) {
 
 
 
-  function findExitForLane(lane){
+
+    function findExitForLane(lane){
     for(let y=0;y<track.length;y++){
       for(let x=0;x<track[y].length;x++){
         if(track[y][x] !== "<") continue;
@@ -1120,7 +1136,10 @@ function animateBalanceMinigame(pName) {
       }
     }
     return null;
-  }
+}
+
+
+
   // === Startpositie ===
   function findStart(){
     for(let y=0;y<track.length;y++){
@@ -1240,12 +1259,18 @@ function checkTriggers(p, now, pName){
 
 
     // === MINIGAME TRIGGER ===
-    for(const [symbol, game] of Object.entries(minigameTiles)){
-        if(tile.startsWith(symbol) && p.lastTile !== symbol && !p.inMinigame){
-            startMinigame(pName, game);
-            break; // maar 1 minigame tegelijk
-        }
+if (tile === ">" && p.lastTile !== ">" && !p.inMinigame) {
+    const nextTile = tileAt(tx + 1, ty);
+
+    if (nextTile === "B") {
+        startMinigame(pName, "balance");
     }
+
+    if (nextTile === "L" || nextTile === "I") {
+        startMinigame(pName, "loop");
+    }
+}
+
 
     // === CHECKPOINTS ===
     const next = checkpoints[p.lane][p.nextCheckpoint];
@@ -1457,6 +1482,7 @@ window.uploadEndScores = function() {
 
 <script>
 /* === PLAYER NAME PERSISTENCE === */
+
 const nameInputP1 = document.getElementById("nameP1");
 const nameInputP2 = document.getElementById("nameP2");
 const lapcount = document.getElementsByName("LapInput");
