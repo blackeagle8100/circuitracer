@@ -930,7 +930,6 @@ function startLoopingMinigame(pName, callback){
     const state = minigameState[pName];
     if(state.active) return;
 
-    // ✅ Zet minigame actief
     state.active = true;
     state.type = "loop";
     state.angle = -90;
@@ -938,7 +937,6 @@ function startLoopingMinigame(pName, callback){
     state.completed = false;
     state.lastTime = performance.now();
 
-    // ✅ Toon minigame panel
     const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
     panel.style.display = "flex";
     positionMinigamePanel(pName);
@@ -946,13 +944,12 @@ function startLoopingMinigame(pName, callback){
     // ✅ Toon boost-knoppen alleen voor looping
     document.getElementById("boostControls").style.display = "flex";
 
-    // Animatie loop
     function anim(){
         if(!state.active){
             panel.style.display = "none";
             players[pName].inMinigame = false;
 
-            // ✅ Verberg boost-knoppen als minigame stopt
+            // ✅ Verberg boost-knoppen direct als looping eindigt
             document.getElementById("boostControls").style.display = "none";
 
             if(callback) callback();
