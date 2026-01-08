@@ -1393,37 +1393,31 @@ function positionMinigamePanel(pName){
   P1: { x:0, y:0 },
   P2: { x:0, y:0 }
 };
-
 function setupStick(stickId, player){
     const stick = document.getElementById(stickId);
     const knob = stick.querySelector(".knob");
     const radius = 50;
-
     function start(e){
         e.preventDefault();
         move(e);
         window.addEventListener("touchmove", move);
         window.addEventListener("touchend", end);
     }
-
     function move(e){
         if(!e.touches || e.touches.length === 0) return;
         const t = e.touches[0];
         const rect = stick.getBoundingClientRect();
         let dx = t.clientX - (rect.left + rect.width/2);
         let dy = t.clientY - (rect.top + rect.height/2);
-
         const len = Math.hypot(dx, dy);
         if(len > radius){
           dx = dx/len * radius;
           dy = dy/len * radius;
         }
-
         knob.style.transform = `translate(${dx}px, ${dy}px) translate(-50%,-50%)`;
         sticks[player].x = dx / radius;
         sticks[player].y = dy / radius;
     }
-
     function end(){
         sticks[player].x = 0;
         sticks[player].y = 0;
@@ -1431,20 +1425,13 @@ function setupStick(stickId, player){
         window.removeEventListener("touchmove", move);
         window.removeEventListener("touchend", end);
     }
-
     stick.addEventListener("touchstart", start);
 }
-
-
 setupStick("stickP1", "P1");
 setupStick("stickP2", "P2");
-
-
-
   // === Update speler ===
 function updatePlayer(p, dt){
     if(p.inMinigame) return;
-
     let ax=0, ay=0;
     for(const k in p.keys){
         if(keys[k]){
@@ -1452,45 +1439,35 @@ function updatePlayer(p, dt){
             ay += p.keys[k][1];
         }
     }
-
     const s = sticks[p === players.P1 ? "P1" : "P2"];
     ax += s.x;
     ay += s.y;
-
     const len = Math.hypot(ax, ay);
     if(len > 0){
         ax /= len;
         ay /= len;
         p.angle = Math.atan2(ay, ax);
     }
-
     const speedX = ax * CONFIG.SPEED * dt / CONFIG.TILE_SIZE;
     const speedY = ay * CONFIG.SPEED * dt / CONFIG.TILE_SIZE;
-
     // Bereken stappen op 0.5 tile intervallen
     const steps = Math.ceil(Math.max(Math.abs(speedX), Math.abs(speedY)) * 2);
     for (let i = 1; i <= steps; i++) {
         const nx = p.x + speedX * i / steps;
         const ny = p.y + speedY * i / steps;
-
         if(walkableTile(p, nx, p.y)) p.x = nx;
         if(walkableTile(p, p.x, ny)) p.y = ny;
-
         // Check triggers op deze tile
         checkTriggers(p, performance.now()/1000, p === players.P1 ? "P1" : "P2");
     }
 }
-
   // === Check triggers ===
-
 function checkTriggers(p, now, pName){
     if(p.inMinigame) return;
-
     const tx = Math.floor(p.x);
     const ty = Math.floor(p.y);
     const t = tileAt(tx, ty);
     const nextTile = tileAt(tx+1, ty);
-
     // Minigame trigger
     if(t === ">" && p.lastTile !== ">" && MINIGAME_MAPPING[nextTile]){
     p.lastTile = ">";
@@ -1498,13 +1475,11 @@ function checkTriggers(p, now, pName){
     startMinigame(pName, mgType);
     return;
 }
-
     // Checkpoints
     const next = checkpoints[p.lane][p.nextCheckpoint];
     if(next && Math.abs(next.x+0.5 - p.x)<0.6 && Math.abs(next.y+0.5 - p.y)<0.6){
         p.nextCheckpoint++;
     }
-
     // Start/finish
     if(t === "S" && p.lastTile !== "S"){
         if(!p.started){
@@ -1518,22 +1493,18 @@ function checkTriggers(p, now, pName){
             p.lapStart = now;
             p.nextCheckpoint = 0;
             if(!p.bestLap || lapTime < p.bestLap) p.bestLap = lapTime;
-
             const totalLaps = parseInt(document.getElementById("lapInput").value,10);
             if(p.lap >= totalLaps && !p.finishTime) p.finishTime = now;
         }
     }
-
     p.lastTile = t;
 }
-
   // === Tekenen ===
 function drawTrack() {
     for (let y = 0; y < track.length; y++) {
         for (let x = 0; x < track[y].length; x++) {
             const tile = track[y][x];
             let color;
-
             if (tile === "S") color = "white";       // start = wit
             else if (tile === ">") color = "#ff9900"; // trigger = geel-oranje
             else if (tile === "<") color = "#39ff14"; // exit = neon groen
@@ -1552,56 +1523,41 @@ function drawTrack() {
                     case "J": color = "purple"; break; // jump
                     default: color = "#777";
                 }
-
             }
-
             ctx.fillStyle = color;
             ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
         }
     }
 }
-
 function drawPlayers() {
     for (const [key, p] of Object.entries(players)) {
         const sprite = carSprites[key];
         if (!sprite.complete) continue;
-
         const size = CONFIG.TILE_SIZE * 2; // grootte auto
-
         ctx.save();
         ctx.translate(p.x * CONFIG.TILE_SIZE, p.y * CONFIG.TILE_SIZE);
-
         // Correctie voor top-down sprite: voorkant wijst omhoog
         ctx.rotate(p.angle - Math.PI/2);
-
         ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
         ctx.restore();
     }
 }
-
-
 function fmt(t){
 return t!=null?t.toFixed(2)+"s":"--";
 }
-
 function showWinner() {
     const overlay = document.getElementById("overlay");
     overlay.style.display = "flex";
-
     const winnerText = document.getElementById("winnerText");
     const p1Time = players.P1.finishTime ?? Infinity;
     const p2Time = players.P2.finishTime ?? Infinity;
-
     if (p1Time < p2Time) winnerText.textContent = players.P1.started ? players.P1.name : "P1";
     else if (p2Time < p1Time) winnerText.textContent = players.P2.started ? players.P2.name : "P2";
     else winnerText.textContent = "TIE";
 }
-
-
 function drawHUD() {
     const laps = parseInt(document.getElementById("lapInput").value, 10);
     const now = performance.now() / 1000;
-
     // P1 stats
     const p1 = players.P1;
     const p1Stats = [];
@@ -1609,7 +1565,6 @@ function drawHUD() {
     p1Stats.push(`Best: ${fmt(p1.bestLap)}`);
     if (p1.started) p1Stats.push(`Current: ${fmt(now - p1.lapStart)}`);
     document.getElementById("statsP1").textContent = p1Stats.join(" | ");
-
     // P2 stats
     const p2 = players.P2;
     const p2Stats = [];
@@ -1618,10 +1573,7 @@ function drawHUD() {
     if (p2.started) p2Stats.push(`Current: ${fmt(now - p2.lapStart)}`);
     document.getElementById("statsP2").textContent = p2Stats.join(" | ");
 }
-
-
   // === Loop ===
-
   let lastTime = performance.now();
 let frameCount = 0;
 
