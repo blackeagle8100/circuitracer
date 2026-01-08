@@ -250,7 +250,14 @@ canvas#game {
 /* geen overlay joysticks */
 
 #boostControls {
-    display: none; /* standaard verborgen */
+  display: none; /* default hidden */
+  position: absolute;
+  pointer-events: auto;
+  z-index: 20;
+}
+#boostControls button {
+  padding: 15px 20px;
+  font-size: 18px;
 }
 
 @media (max-width: 900px) and (orientation: landscape) {
@@ -935,16 +942,28 @@ function startLoopingMinigame(pName, callback){
     panel.style.display = "flex";
     positionMinigamePanel(pName);
 
-    // ✅ Toon boost-knoppen alleen voor looping
-    document.getElementById("boostControls").style.display = "flex";
+    // ✅ Toon boost-knoppen **op panel zelf**
+    const boost = document.getElementById(pName === "P1" ? "boostP1" : "boostP2");
+    boost.style.display = "block";
+    const panelRect = panel.getBoundingClientRect();
+
+    if(pName === "P1"){
+        // boost rechts van panel
+        boost.style.left = (panelRect.right + 10) + "px";
+    } else {
+        // boost links van panel
+        boost.style.left = (panelRect.left - boost.offsetWidth - 10) + "px";
+    }
+    boost.style.top = (panelRect.top + panelRect.height/2 - boost.offsetHeight/2) + "px";
+    boost.style.position = "absolute";
 
     function anim(){
         if(!state.active){
             panel.style.display = "none";
             players[pName].inMinigame = false;
 
-            // ✅ Verberg boost-knoppen direct als looping eindigt
-            document.getElementById("boostControls").style.display = "none";
+            // ✅ verberg boost-knoppen direct
+            boost.style.display = "none";
 
             if(callback) callback();
             return;
