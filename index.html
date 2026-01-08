@@ -582,7 +582,7 @@ const ctx = canvas.getContext("2d");
   "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
   "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
   "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
-  "|11=22***||**||**||**||**||**||**||**||**||**||SSSSS|",
+  "|11=22***||**||**||**||**||**||**||**||**||**||SS=SS|",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "|11============================NNNN===============22|",
@@ -616,7 +616,7 @@ const ctx = canvas.getContext("2d");
   "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
   "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
   "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
-  "|11=22***||**||**||**||**||**||**||**||**||**||SSSSS|",
+  "|11=22***||**||**||**||**||**||**||**||**||**||SS=SS|",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "|11============================NNNN===============22|",
@@ -1202,15 +1202,6 @@ function animateBalanceMinigame(pName) {
 }
 
 
-
-
-
-
-
-
-
-
-
   function walkableTile(p, x, y){
     const t = tileAt(Math.floor(x), Math.floor(y));
     if(["|","G","="].includes(t)) return false;
@@ -1479,8 +1470,8 @@ function drawTrack() {
                     case "=": color = "#777"; break;
                     case "G": color = "green"; break;
                     case "C": color = "purple"; break;
-                    case "*": case "%": color = "white"; break;
                     case "Y": ctx.fillStyle="yellow"; break;
+                    case "*": case "%": color = "white"; break;
                     case "H": color = "cyan"; break;
                     case "B": color = "blue"; break;   // balance
                     case "L": color = "red"; break;    // looping
@@ -1514,8 +1505,23 @@ function drawPlayers() {
 }
 
 
-  function fmt(t){ return t!=null?t.toFixed(2)+"s":"--"; }
+function fmt(t){
+return t!=null?t.toFixed(2)+"s":"--";
+}
 
+function showWinner() {
+    const overlay = document.getElementById("overlay");
+    overlay.style.display = "flex";
+
+    const winnerText = document.getElementById("winnerText");
+    if (players.P1.finishTime < players.P2.finishTime) {
+        winnerText.textContent = players.P1.started ? players.P1.name : "P1";
+    } else if (players.P2.finishTime < players.P1.finishTime) {
+        winnerText.textContent = players.P2.started ? players.P2.name : "P2";
+    } else {
+        winnerText.textContent = "TIE";
+    }
+}
 
 
 function drawHUD() {
@@ -1539,6 +1545,7 @@ function drawHUD() {
     document.getElementById("statsP2").textContent = p2Stats.join(" | ");
 }
 
+
   // === Loop ===
 
   let lastTime = performance.now();
@@ -1549,53 +1556,20 @@ function loop(now) {
     lastTime = now;
 
     if (!gameOver) {
-
-        // === Update spelers (pauzeert automatisch in minigame) ===
+        // Update spelers
         updatePlayer(players.P1, dt);
         updatePlayer(players.P2, dt);
 
-        const currentTime = performance.now() / 1000;
-
-
-
-        // === Update totale tijd (niet in minigame) ===
-        if (players.P1.started) players.P1.totalTime += dt;
-        if (players.P2.started) players.P2.totalTime += dt;
-
-        // === Tekenen ===
+        // Teken alles
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawTrack();
         drawPlayers();
         drawHUD();
 
-        // === Finish check (elke 20 frames) ===
-        frameCount++;
-        if (frameCount >= 20) {
-            frameCount = 0;
-
-            const finishedPlayers = Object.entries(players)
-                .filter(([_, p]) => p.finishTime != null);
-
-            if (!gameOver && finishedPlayers.length > 0) {
-                // Laagste finishTime wint
-                finishedPlayers.sort((a, b) => a[1].finishTime - b[1].finishTime);
-
-                const winnerKey = finishedPlayers[0][0]; // "P1" of "P2"
-                const winnerName = document.getElementById(
-                    winnerKey === "P1" ? "nameP1" : "nameP2"
-                ).value || winnerKey;
-
-                gameOver = true;
-                document.getElementById("winnerText").textContent = winnerName + " WINS!";
-                document.getElementById("overlay").style.display = "flex";
-
-                // ✅ Upload hier de best_lap voor iedere speler die toch een ronde gereden heeft
-                uploadEndScores();
-            }
-        }
+        // Check game over
+        if(players.P1.finishTime && players.P2.finishTime) gameOver = true;
     }
 
-    // ✅ Vraag volgende animatieframe aan
     requestAnimationFrame(loop);
 }
 
