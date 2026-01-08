@@ -896,6 +896,7 @@ function runMinigamesSequence(pName, sequence) {
 function startBalanceMinigame(pName, callback){
     const state = minigameState[pName];
     if(state.active) return;
+
     state.active = true;
     state.plankAngle = 0;
     state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
@@ -907,6 +908,9 @@ function startBalanceMinigame(pName, callback){
     const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
     panel.style.display = "flex";
     positionMinigamePanel(pName);
+
+    //  Boost-knoppen **verbergen** voor alle andere minigames
+    document.getElementById("boostControls").style.display = "none";
 
     function anim() {
         if(!state.active){
@@ -920,6 +924,7 @@ function startBalanceMinigame(pName, callback){
     }
     requestAnimationFrame(anim);
 }
+
 
 
 
@@ -980,6 +985,8 @@ function startJumpMinigame(pName, callback){
     const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
     panel.style.display = "flex";
     positionMinigamePanel(pName);
+        //  Boost-knoppen **verbergen** voor alle andere minigames
+    document.getElementById("boostControls").style.display = "none";
 
     // Animatie loop
     function anim(){
