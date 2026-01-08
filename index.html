@@ -474,6 +474,8 @@ canvas#game {
 
 
   // === BOOST BUTTON (mouse + touch, 1x setup) ===
+const boostP1 = document.getElementById("boostP1");
+const boostP2 = document.getElementById("boostP2");
 ["touchstart","mousedown"].forEach(ev=>{
   boostP1.addEventListener(ev, e=>{
     e.preventDefault();
