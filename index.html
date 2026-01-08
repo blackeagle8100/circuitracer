@@ -464,16 +464,11 @@ let GLOBAL_PLANK_LENGTH = CONFIG.BASE_PLANK;
 
 
   // === MINIGAME SETTINGS ===
-  const BALANCE_DURATION = 3; // seconden dat de speler moet balanceren
+  const CONFIG.BALANCE_DURATION = 3; // seconden dat de speler moet balanceren
   let GLOBAL_PLANK_LENGTH = 220;
   GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
 
- // let PLANK_LENGTH = 300;  // pixels
-  const MAX_ANGLE = 35;       // max kanteling
-  const BALANCE_ZONE = 30;    // px rond midden waar het groen is   // pixels/sec^2
-  const GRAVITY = 420;
-  const FRICTION = 0.98;
-  const BASE_PLANK = 220; // 👈 HIER
+
 
   const checkpoints = { "1": [], "2": [] };
   const used = new Set();
@@ -580,10 +575,8 @@ window.addEventListener("blur", () => {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-  //GAMESETTINGS
-  const TILE_SIZE = 16;
 
-  const SPEED = 400;
+
   document.getElementById("newGameBtn").addEventListener("click", () => {
     location.reload();
   });
@@ -838,8 +831,8 @@ function resizeCanvas() {
     if (!track) return; // veiligheid: track moet geladen zijn
 
     // 1️⃣ Bereken de echte canvas grootte op basis van tiles
-    const gameWidth  = track[0].length * TILE_SIZE;
-    const gameHeight = track.length * TILE_SIZE;
+    const gameWidth  = track[0].length * CONFIG.TILE_SIZE;
+    const gameHeight = track.length * CONFIG.TILE_SIZE;
 
     canvas.width  = gameWidth;
     canvas.height = gameHeight;
@@ -1095,7 +1088,7 @@ function checkMinigameOverlay(){
         state.speed += 600 * dt;
     }
 
-    // GRAVITY / physics
+    // CONFIG.GRAVITY / physics
     state.speed -= 400 * dt;
     state.speed *= 0.98;
 
@@ -1187,22 +1180,22 @@ function animateBalanceMinigame(pName) {
 
     //update plankhoek
     state.plankAngle += input * 120  * dt;
-    state.plankAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, state.plankAngle));
+    state.plankAngle = Math.max(-CONFIG.MAX_ANGLE, Math.min(CONFIG.MAX_ANGLE, state.plankAngle));
 
     // === PHYSICS ===
-    const gravityScale = Math.min(1.3, Math.max(0.7, GLOBAL_PLANK_LENGTH / BASE_PLANK));
-    state.ballSpeed += GRAVITY * gravityScale * Math.sin(angleRad) * dt;
-    state.ballSpeed *= FRICTION;
+    const gravityScale = Math.min(1.3, Math.max(0.7, GLOBAL_PLANK_LENGTH / CONFIG.BASE_PLANK));
+    state.ballSpeed += CONFIG.GRAVITY * gravityScale * Math.sin(angleRad) * dt;
+    state.ballSpeed *= CONFIG.FRICTION;
     state.ballX += state.ballSpeed * dt;
 
     // === BALANCE CHECK ===
-    const inZone = Math.abs(state.ballX) < BALANCE_ZONE;
+    const inZone = Math.abs(state.ballX) < CONFIG.BALANCE_ZONE;
     if (inZone) state.balanceTime += dt;
     else state.balanceTime = 0;
 
-    const timeLeft = Math.max(0, BALANCE_DURATION - state.balanceTime);
+    const timeLeft = Math.max(0, CONFIG.BALANCE_DURATION - state.balanceTime);
 
-    if (state.balanceTime >= BALANCE_DURATION) {
+    if (state.balanceTime >= CONFIG.BALANCE_DURATION) {
       state.completed = true;
       state.active = false;
       players[pName].inMinigame = false;
@@ -1300,14 +1293,14 @@ function findGreenFieldBounds(){
   }
 
   if (minX === Infinity) {
-    return { x:0, y:0, width: TILE_SIZE*10, height: TILE_SIZE*10 };
+    return { x:0, y:0, width: CONFIG.TILE_SIZE*10, height: CONFIG.TILE_SIZE*10 };
   }
 
   return {
-    x: minX * TILE_SIZE,
-    y: minY * TILE_SIZE,
-    width: (maxX - minX + 1) * TILE_SIZE,
-    height:(maxY - minY + 1) * TILE_SIZE
+    x: minX * CONFIG.TILE_SIZE,
+    y: minY * CONFIG.TILE_SIZE,
+    width: (maxX - minX + 1) * CONFIG.TILE_SIZE,
+    height:(maxY - minY + 1) * CONFIG.TILE_SIZE
   };
 }
 
@@ -1471,8 +1464,8 @@ function updatePlayer(p, dt){
         p.angle = Math.atan2(ay, ax);
     }
 
-    const speedX = ax * SPEED * dt / TILE_SIZE;
-    const speedY = ay * SPEED * dt / TILE_SIZE;
+    const speedX = ax * CONFIG.SPEED * dt / CONFIG.TILE_SIZE;
+    const speedY = ay * CONFIG.SPEED * dt / CONFIG.TILE_SIZE;
 
     // Bereken stappen op 0.5 tile intervallen
     const steps = Math.ceil(Math.max(Math.abs(speedX), Math.abs(speedY)) * 2);
@@ -1500,10 +1493,11 @@ function checkTriggers(p, now, pName){
 
     // Minigame trigger
     if(t === ">" && p.lastTile !== ">" && MINIGAME_MAPPING[nextTile]){
-        p.lastTile = ">";
-        startMinigame(pName, ">" + nextTile);
-        return;
-    }
+    p.lastTile = ">";
+    const mgType = MINIGAME_MAPPING[nextTile];
+    startMinigame(pName, mgType);
+    return;
+}
 
     // Checkpoints
     const next = checkpoints[p.lane][p.nextCheckpoint];
@@ -1562,7 +1556,7 @@ function drawTrack() {
             }
 
             ctx.fillStyle = color;
-            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
         }
     }
 }
@@ -1572,10 +1566,10 @@ function drawPlayers() {
         const sprite = carSprites[key];
         if (!sprite.complete) continue;
 
-        const size = TILE_SIZE * 2; // grootte auto
+        const size = CONFIG.TILE_SIZE * 2; // grootte auto
 
         ctx.save();
-        ctx.translate(p.x * TILE_SIZE, p.y * TILE_SIZE);
+        ctx.translate(p.x * CONFIG.TILE_SIZE, p.y * CONFIG.TILE_SIZE);
 
         // Correctie voor top-down sprite: voorkant wijst omhoog
         ctx.rotate(p.angle - Math.PI/2);
