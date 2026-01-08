@@ -1202,15 +1202,28 @@ function animateBalanceMinigame(pName) {
 }
 
 
-  function walkableTile(p, x, y){
+function walkableTile(p, x, y) {
     const t = tileAt(Math.floor(x), Math.floor(y));
-    if(["|","G","="].includes(t)) return false;
-    if(t==="1" && p.lane!=="1") return false;
-    if(t==="2" && p.lane!=="2") return false;
-    if(t==="H" && p.lane!=="1") return false;
-    if(t==="Y" && p.lane!=="2") return false;
+    if (!t) return false;          // buiten de track = niet wandelbaar
+    if (["|", "G", "="].includes(t)) return false; // muren, gras, enz. niet wandelbaar
+
+    // Lanes check
+    if (t === "1" && p.lane !== "1") return false;
+    if (t === "2" && p.lane !== "2") return false;
+
+    // Start/Hill tiles
+    if (t === "H" && p.lane !== "1") return false;
+    if (t === "Y" && p.lane !== "2") return false;
+
+    // Balans / minigame triggers zijn normaal begaanbaar
+    if (["B", "L", "J"].includes(t)) return true;
+
+    // Start/Finish tiles zijn begaanbaar
+    if (t === "S" || t === "<" || t === ">") return true;
+
+    // Alles wat niet expliciet blokkend is
     return true;
-  }
+}
 
 
 
@@ -1470,7 +1483,7 @@ function drawTrack() {
                     case "=": color = "#777"; break;
                     case "G": color = "green"; break;
                     case "C": color = "purple"; break;
-                    case "Y": ctx.fillStyle="yellow"; break;
+                    case "Y": color = "yellow"; break; // ✅ fix
                     case "*": case "%": color = "white"; break;
                     case "H": color = "cyan"; break;
                     case "B": color = "blue"; break;   // balance
@@ -1478,6 +1491,7 @@ function drawTrack() {
                     case "J": color = "purple"; break; // jump
                     default: color = "#777";
                 }
+
             }
 
             ctx.fillStyle = color;
@@ -1514,13 +1528,12 @@ function showWinner() {
     overlay.style.display = "flex";
 
     const winnerText = document.getElementById("winnerText");
-    if (players.P1.finishTime < players.P2.finishTime) {
-        winnerText.textContent = players.P1.started ? players.P1.name : "P1";
-    } else if (players.P2.finishTime < players.P1.finishTime) {
-        winnerText.textContent = players.P2.started ? players.P2.name : "P2";
-    } else {
-        winnerText.textContent = "TIE";
-    }
+    const p1Time = players.P1.finishTime ?? Infinity;
+    const p2Time = players.P2.finishTime ?? Infinity;
+
+    if (p1Time < p2Time) winnerText.textContent = players.P1.started ? players.P1.name : "P1";
+    else if (p2Time < p1Time) winnerText.textContent = players.P2.started ? players.P2.name : "P2";
+    else winnerText.textContent = "TIE";
 }
 
 
