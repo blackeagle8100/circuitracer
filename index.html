@@ -159,7 +159,8 @@ canvas#game {
     border-radius: 8px;
     text-decoration: none;
     box-shadow: 0 0 15px #ffff66;
-    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;w
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+
 }
 
 .playerRow {
@@ -248,7 +249,9 @@ canvas#game {
 /* canvas in layout */
 /* geen overlay joysticks */
 
-
+#boostControls {
+    display: none; /* standaard verborgen */
+}
 
 @media (max-width: 900px) and (orientation: landscape) {
   #mobileControls {
@@ -261,7 +264,9 @@ canvas#game {
     pointer-events: none;
     z-index: 20;
   }
-
+  #boostControls {
+    display: none; /* standaard verborgen */
+}
   .stick {
     position: absolute;
     bottom: 5%; /* afstand vanaf container bottom */
@@ -278,22 +283,7 @@ canvas#game {
 
 
 
-@media (orientation: portrait) {
 
-  body {
-    overflow: hidden;
-  }
-
-  #rotateWarning {
-    display: flex;
-  }
-
-  #gameContainer,
-  #topBar,
-  #mobileControls {
-    display: none;
-  }
-}
 
 
 @media (max-width: 600px) and (orientation: landscape) {
@@ -319,8 +309,25 @@ canvas#game {
 
   </head>
 <body>
+
+<div id="boostControls" style="position:fixed;bottom:10%;width:100%;display:flex;justify-content:space-between;pointer-events:auto;z-index:15;">
+  <button id="boostP1" style="padding:20px;font-size:20px;">BOOST</button>
+  <button id="boostP2" style="padding:20px;font-size:20px;">BOOST</button>
+</div>
+
+
+
+<div id="trackMenu" style="position:fixed;top:0;left:0;right:0;bottom:0;
+     background:rgba(0,0,0,0.9);color:white;display:flex;flex-direction:column;
+     justify-content:center;align-items:center;gap:20px;z-index:50;">
+  <h1>Select Track</h1>
+  <button onclick="selectTrack('LVL1')">Track 1</button>
+  <button onclick="selectTrack('LVL2')">Track 2</button>
+</div>
+
+
 <div id="rotateWarning" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
-     background:rgba(0,0,0,0.9); color:white; font-size:24px; display:flex;
+     background:rgba(0,0,0,0.9); color:white; font-size:24px;
      justify-content:center; align-items:center; text-align:center; z-index:50;">
     TURN YOUR PHONE TO PLAY THE GAME!
 </div>
@@ -334,7 +341,7 @@ canvas#game {
 
   <a href="https://blackeagle8100.github.io/RacingBoard/" target="_blank" class="scoreboardButton">
     SCOREBOARD!
-  </a>
+  </a>²
 
   <div id="hud">
     <div class="playerRow">
@@ -389,6 +396,9 @@ canvas#game {
 
 
   <script>
+
+
+
   // Supabase client initialiseren
     // === Spelers ===
   const players = {
@@ -421,21 +431,66 @@ canvas#game {
       finishTime: null
     }
   }
-
+  let currentTrack = null;
+  let track = null;
     // Minigame instellingen
   // === MINIGAME SETTINGS ===
+  // Map van trigger tiles naar minigames
+
+
   // === MINIGAME SETTINGS ===
   const BALANCE_DURATION = 3; // seconden dat de speler moet balanceren
   let GLOBAL_PLANK_LENGTH = 220;
+  GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
+
  // let PLANK_LENGTH = 300;  // pixels
   const MAX_ANGLE = 35;       // max kanteling
   const BALANCE_ZONE = 30;    // px rond midden waar het groen is   // pixels/sec^2
   const GRAVITY = 420;
-  const FRICTION = 0.995;
+  const FRICTION = 0.98;
   const BASE_PLANK = 220; // 👈 HIER
 
+  const checkpoints = { "1": [], "2": [] };
+  const used = new Set();
+  const boosts = { P1: false, P2: false };
 
-  // key mapping
+
+
+
+  // KEYMAPPING
+  // PC toetsen
+  window.addEventListener("keydown", e=>{
+      if(e.key===" ") boosts.P1=true; // spatie = boost
+  });
+  window.addEventListener("keyup", e=>{
+      if(e.key===" ") boosts.P1=false;
+  });
+
+
+  // === BOOST BUTTON (mouse + touch, 1x setup) ===
+["touchstart","mousedown"].forEach(ev=>{
+  boostP1.addEventListener(ev, e=>{
+    e.preventDefault();
+    boosts.P1 = true;
+  });
+  boostP2.addEventListener(ev, e=>{
+    e.preventDefault();
+    boosts.P2 = true;
+  });
+});
+
+["touchend","mouseup","touchcancel","mouseleave"].forEach(ev=>{
+  boostP1.addEventListener(ev, ()=>boosts.P1=false);
+  boostP2.addEventListener(ev, ()=>boosts.P2=false);
+});
+
+
+  // Veilig: boost reset als tab focus verliest
+window.addEventListener("blur", () => {
+    boosts.P1 = false;
+    boosts.P2 = false;
+});
+
  const minigameKeys = {
   P1: {
     left: ["q", "arrowleft"],
@@ -464,17 +519,46 @@ canvas#game {
 
   // Track minigame state per speler
   const minigameState = {
-    P1: {active:false, plankAngle:0, balanceTime:0, completed:false, lastTime:0},
-    P2: {active:false, plankAngle:0, balanceTime:0, completed:false, lastTime:0}
-  };
+  P1: {
+    active:false,
+    type:null,
+    plankAngle:0,
+    ballX:0,
+    ballSpeed:0,
+    balanceTime:0,
+    angle:0,
+    speed:0,
+    completed:false,
+    lastTime:0
+  },
+  P2: {
+    active:false,
+    type:null,
+    plankAngle:0,
+    ballX:0,
+    ballSpeed:0,
+    balanceTime:0,
+    angle:0,
+    speed:0,
+    completed:false,
+    lastTime:0
+  }
+};
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
   //GAMESETTINGS
   const TILE_SIZE = 16;
+
   const SPEED = 400;
   document.getElementById("newGameBtn").addEventListener("click", () => {
     location.reload();
   });
-  const track = [
+
+
+
+  const LVL1 = [
   "**||*||**||**||**||**||**||**||**||**||**||**||**||**",
   "*11111C111111111NNNNNY222>BBBBBOBBBBB<22222C22222222*",
   "|11111C111111111NNNNNY222>BBBBBOBBBBB<22222C22222222|",
@@ -498,7 +582,7 @@ canvas#game {
   "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
   "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
   "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
-  "|11=22***||**||**||**||**||**||**||**||**||**||SSSSS|",
+  "|11=22***||**||**||**||**||**||**||**||**||**||SS=SS|",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
   "|11============================NNNN===============22|",
@@ -507,10 +591,46 @@ canvas#game {
   "**||**||**||**||**||**||**||**||**||**||**||**||*||**"
   ];
 
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
 
-    // === CAR SPRITES ===
+  const LVL2 = [
+  "**||*||**||**||**||**||**||**||**||**||**||**||**||**",
+  "*11111C111111111NNNNNY222>LIIIIIIIIIL<22222C22222222*",
+  "|11111C111111111NNNNNY222>LIIIIIIIIIL<22222C22222222|",
+  "|11=============NNNN==============================22|",
+  "*11=22C222222222NNNNNH111>LIIIIIIIIIL<11111C11111=22*",
+  "*11=22C222222222NNNNNH111>LIIIIIIIIIL<11111C11111=22*",
+  "|11=22||**||**||**||**||**||**||**||**||**||***11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=22*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*%%=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*%%=22|",
+  "*11=22|GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG*11=%%*",
+  "*11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22*",
+  "|11=22*GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG|11=22|",
+  "|11=22***||**||**||**||**||**||**||**||**||**||SS=SS|",
+  "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
+  "*11=222222C222222222222222222YNNNNN1111111111C111=22*",
+  "|11============================NNNN===============22|",
+  "|111111111C111111111111111111HNNNNN2222222222C222222|",
+  "*111111111C111111111111111111HNNNNN2222222222C222222*",
+  "**||**||**||**||**||**||**||**||**||**||**||**||*||**"
+  ];
+
+
+   const tracks = {
+  LVL1: { map: LVL1, minigame: "balance" },
+  LVL2: { map: LVL2, minigame: "loop" }
+  };
+      // === CAR SPRITES ===
   const carSprites = {
     P1: new Image(),
     P2: new Image()
@@ -525,60 +645,107 @@ canvas#game {
 
 
   let gameOver = false;
+  let currentTable = "LVL1";
 
-function checkOrientation() {
-    const warning = document.getElementById("rotateWarning");
-    const gameWrapper = document.getElementById("gameWrapper");
-    const mobileControls = document.getElementById("mobileControls");
-
-    if(window.innerHeight > window.innerWidth){ // Portrait
-        warning.style.display = "flex";
-        gameWrapper.style.display = "none";
-        mobileControls.style.display = "none";
-    } else { // Landscape
-        warning.style.display = "none";
-        gameWrapper.style.display = "flex";
-        if(("ontouchstart" in window) || navigator.maxTouchPoints > 0){
-            mobileControls.style.display = "flex";
-        }
-        resizeCanvas(); // belangrijk om minigame panel te schalen
-    }
-}
-window.addEventListener("orientationchange", checkOrientation);
-window.addEventListener("resize", checkOrientation);
-checkOrientation(); // init
-
-
-function positionMinigamePanel(pName){
+function positionMinigamePanel(pName) {
     const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
-    const canvasRect = canvas.getBoundingClientRect();
-    const green = findGreenFieldBounds();
+    if (!panel) return;
 
-    const scaleX = canvasRect.width / canvas.width;
-    const scaleY = canvasRect.height / canvas.height;
+    const wrapper = document.getElementById("gameWrapper");
+    const rect = wrapper.getBoundingClientRect();
+    // Plaats boven de canvas (bijvoorbeeld)
+    panel.style.left = "50%";
+    panel.style.top = "50%";
+    panel.style.transform = "translate(-50%, -50%)";
+}
 
-    const PANEL_W = Math.min(500, green.width * scaleX * 0.45);
-    let PANEL_H = Math.min(350, green.height * scaleY * 0.8);
-    if(window.innerHeight < 600) PANEL_H = Math.min(300, green.height * scaleY * 0.7);
 
-    panel.style.width = PANEL_W + "px";
-    panel.style.height = PANEL_H + "px";
+function initTrackData() {
+    // Maak arrays leeg voor beide lanes
+    checkpoints["1"].length = 0;
+    checkpoints["2"].length = 0;
 
-    const greenLeft = canvasRect.left + green.x * scaleX;
-    const greenTop  = canvasRect.top + green.y * scaleY;
+    // Loop door de track
+    for (let y = 0; y < track.length; y++) {
+        for (let x = 0; x < track[y].length; x++) {
+            const t = track[y][x];
 
-    // Links/rechts van midden
-    if(pName === "P1"){
-        panel.style.left = greenLeft + green.width * scaleX * 0.25 - PANEL_W/2 + "px";
-    } else {
-        panel.style.left = greenLeft + green.width * scaleX * 0.75 - PANEL_W/2 + "px";
+            // Check voor checkpoints
+            if (t === "C") {
+                // Voeg toe aan beide lanes, of filter per lane indien nodig
+                // Hier ga ik ervan uit dat lane 1 op '1' tiles start, lane 2 op '2'
+                // Later sorteer je ze in selectTrack()
+                checkpoints["1"].push({ x, y });
+                checkpoints["2"].push({ x, y });
+            }
+        }
     }
 
-    // Verticaal centreren
-    panel.style.top = greenTop + green.height * scaleY / 2 - PANEL_H/2 + "px";
+    // Optioneel: sorteer de checkpoints rond het midden van de track
+    const trackCenter = { x: track[0].length / 2, y: track.length / 2 };
 
-    resizeMinigameCanvas(pName);
+    for (const lane of ["1", "2"]) {
+        checkpoints[lane].sort((a, b) => {
+            return Math.atan2(a.y - trackCenter.y, a.x - trackCenter.x)
+                 - Math.atan2(b.y - trackCenter.y, b.x - trackCenter.x);
+        });
+    }
+
+    console.log("Checkpoints initialized:", checkpoints);
 }
+
+
+
+
+
+
+function selectTrack(name){
+
+        used.clear();
+    checkpoints["1"].length = 0;
+    checkpoints["2"].length = 0;
+
+    currentTrack = tracks[name];
+    track = currentTrack.map;
+    currentTable = name;
+
+    document.getElementById("trackMenu").style.display = "none";
+
+    initTrackData();   // ← bouwt checkpoints[]
+    findStart();
+    resizeCanvas();
+    checkOrientation();
+
+
+    // ✅ HIER PLAATS JE DE CODE
+    const trackCenter = {
+        x: track[0].length / 2,
+        y: track.length / 2
+    };
+
+    for (const lane of ["1", "2"]) {
+        checkpoints[lane].sort((a, b) => {
+            const ca = checkpointCenter(a);
+            const cb = checkpointCenter(b);
+            return Math.atan2(ca.y - trackCenter.y, ca.x - trackCenter.x)
+                 - Math.atan2(cb.y - trackCenter.y, cb.x - trackCenter.x);
+        });
+
+        while (true) {
+            const c = checkpointCenter(checkpoints[lane][0]);
+            if (c.x > trackCenter.x && c.y > trackCenter.y) break;
+            checkpoints[lane].push(checkpoints[lane].shift());
+        }
+    }
+
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+}
+
+
+
+
+
 
 function resizeMinigameCanvas(p){
     const panel = document.getElementById(p === "P1" ? "panelP1" : "panelP2");
@@ -599,77 +766,237 @@ function resizeMinigameCanvas(p){
 }
 
 
-function resizeCanvas(){
-  const gameWidth  = track[0].length * TILE_SIZE;
-  const gameHeight = track.length * TILE_SIZE;
 
-  canvas.width  = gameWidth;
-  canvas.height = gameHeight;
+// ✅ Detect mobile / touch devices reliably
+const isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+                 && window.innerWidth <= 900;
 
-  const vw = window.innerWidth;
-  const wrapper = document.getElementById("gameWrapper");
-  const vh = wrapper.clientHeight;
 
-  const scale = Math.min(vw / gameWidth, vh / gameHeight);
 
-  canvas.style.width  = (gameWidth  * scale) + "px";
-  canvas.style.height = (gameHeight * scale) + "px";
 
-  const green = findGreenFieldBounds();
-  const scaleX = canvas.getBoundingClientRect().width / canvas.width;
 
-  GLOBAL_PLANK_LENGTH = green.width * scaleX * 0.35;
-  GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
-  //const PLANK_LENGTH = GLOBAL_PLANK_LENGTH;
-  positionMinigamePanel("P1");
-  positionMinigamePanel("P2");
+function checkOrientation() {
+    const warning = document.getElementById("rotateWarning");
+    const gameWrapper = document.getElementById("gameWrapper");
+    const mobileControls = document.getElementById("mobileControls");
 
+    if (isMobile && window.innerHeight > window.innerWidth) {
+        warning.style.display = "flex";
+        gameWrapper.style.display = "none";
+        mobileControls.style.display = "none";
+    } else {
+        warning.style.display = "none";
+        gameWrapper.style.display = "flex";
+        mobileControls.style.display = isMobile ? "flex" : "none";
+        resizeCanvas();  // 🔑 ensure minigames scale correctly
+    }
 }
 
 
- window.addEventListener("orientationchange", resizeCanvas);
- window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();
+function resizeCanvas() {
+    if (!track) return; // veiligheid: track moet geladen zijn
+
+    // 1️⃣ Bereken de echte canvas grootte op basis van tiles
+    const gameWidth  = track[0].length * TILE_SIZE;
+    const gameHeight = track.length * TILE_SIZE;
+
+    canvas.width  = gameWidth;
+    canvas.height = gameHeight;
+
+    // 2️⃣ Bereken schaal zodat het past in het wrapper-element
+    const wrapper = document.getElementById("gameWrapper");
+    const vw = window.innerWidth;
+    const vh = wrapper.clientHeight;
+
+    const scale = Math.min(vw / gameWidth, vh / gameHeight);
+
+    canvas.style.width  = (gameWidth  * scale) + "px";
+    canvas.style.height = (gameHeight * scale) + "px";
+
+    // 3️⃣ Update minigame plank-grootte op basis van green field
+    const green = findGreenFieldBounds(); // bounds van 'G'-tiles
+    const scaleX = canvas.getBoundingClientRect().width / canvas.width;
+    GLOBAL_PLANK_LENGTH = green.width * scaleX * 0.35;
+
+    // 4️⃣ Clamp lengte zodat het niet te klein of groot wordt
+    GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
+
+    // 5️⃣ Update minigame panels (positie & grootte)
+    positionMinigamePanel("P1");
+    positionMinigamePanel("P2");
+}
 
 
 
-  function tileAt(tx, ty){ return track[ty]?.[tx] || "|"; }
+ window.addEventListener("resize", checkOrientation);
+ window.addEventListener("orientationchange", checkOrientation);
 
+
+
+function tileAt(tx, ty){
+    if (!track[ty] || !track[ty][tx]) return null;
+    return track[ty][tx];
+}
 
     // Start minigame voor speler p (P1 of P2)
 
-function startMinigame(pName){
+
+function startMinigame(pName, tile) {
+    if(players[pName].inMinigame) return;
+
+    const minigamesToStart = [];
+
+    // Bepaal welke minigame(s) we moeten starten op basis van tile
+    switch(tile){
+        case ">B": // Balance
+            minigamesToStart.push("balance");
+            break;
+        case ">L": // Looping
+            minigamesToStart.push("looping");
+            break;
+        case ">J": // Jump
+            minigamesToStart.push("jump");
+            break;
+        default:
+            console.warn("Onbekende minigame tile:", tile);
+            return;
+    }
+
+    // ✅ Set speler in minigame
+    players[pName].inMinigame = true;
+    minigameOverlay.style.display = "block";
+
+    // ✅ Start minigames één voor één
+    runMinigamesSequence(pName, minigamesToStart);
+}
+
+function runMinigamesSequence(pName, sequence) {
+    if(sequence.length === 0){
+        // Alle minigames voltooid
+        players[pName].inMinigame = false;
+        checkMinigameOverlay();
+        return;
+    }
+
+    const current = sequence.shift(); // eerste minigame
+    switch(current){
+        case "balance":
+            startBalanceMinigame(pName, () => runMinigamesSequence(pName, sequence));
+            break;
+        case "looping":
+            startLoopingMinigame(pName, () => runMinigamesSequence(pName, sequence));
+            break;
+        case "jump":
+            startJumpMinigame(pName, () => runMinigamesSequence(pName, sequence));
+            break;
+    }
+}
+
+
+function startBalanceMinigame(pName, callback){
     const state = minigameState[pName];
     if(state.active) return;
-
     state.active = true;
-    updateMinigameOverlay();
-
     state.plankAngle = 0;
     state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
     state.ballSpeed = 0;
     state.balanceTime = 0;
     state.completed = false;
-
     state.lastTime = performance.now();
 
-    players[pName].inMinigame = true;
-
-    const panel = document.getElementById(
-        pName === "P1" ? "panelP1" : "panelP2"
-    );
-
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
     panel.style.display = "flex";
-    panel.style.pointerEvents = "auto";
-
     positionMinigamePanel(pName);
 
-    requestAnimationFrame(() => animateMinigame(pName));
+    function anim() {
+        if(!state.active){
+            panel.style.display = "none";
+            players[pName].inMinigame = false;
+            if(callback) callback();
+            return;
+        }
+        animateBalanceMinigame(pName);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
 }
 
 
 
 
+
+
+function startLoopingMinigame(pName, callback){
+    const state = minigameState[pName];
+    if(state.active) return;
+
+    // ✅ Zet minigame actief
+    state.active = true;
+    state.type = "loop";
+    state.angle = -90;
+    state.speed = 0;
+    state.completed = false;
+    state.lastTime = performance.now();
+
+    // ✅ Toon minigame panel
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    panel.style.display = "flex";
+    positionMinigamePanel(pName);
+
+    // ✅ Toon boost-knoppen alleen voor looping
+    document.getElementById("boostControls").style.display = "flex";
+
+    // Animatie loop
+    function anim(){
+        if(!state.active){
+            panel.style.display = "none";
+            players[pName].inMinigame = false;
+
+            // ✅ Verberg boost-knoppen als minigame stopt
+            document.getElementById("boostControls").style.display = "none";
+
+            if(callback) callback();
+            return;
+        }
+        animateLoopingMinigame(pName);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+}
+
+
+
+
+
+function startJumpMinigame(pName, callback){
+    const state = minigameState[pName];
+    if(state.active) return;
+
+    state.active = true;
+    state.plankAngle = 0;
+    state.ballX = -GLOBAL_PLANK_LENGTH/2 + 10;
+    state.ballSpeed = 0;
+    state.balanceTime = 0;
+    state.completed = false;
+    state.lastTime = performance.now();
+
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    panel.style.display = "flex";
+    positionMinigamePanel(pName);
+
+    // Animatie loop
+    function anim(){
+        if(!state.active){
+            panel.style.display = "none";
+            players[pName].inMinigame = false;
+            if(callback) callback(); // ga naar volgende minigame
+            return;
+        }
+        animateMinigame(pName);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+}
 
 function checkMinigameOverlay(){
     if(!minigameState.P1.active && !minigameState.P2.active){
@@ -677,14 +1004,95 @@ function checkMinigameOverlay(){
     }
 }
 
-  // Minigame animatie per speler
+  function animateLoopingMinigame(pName){
+    const canvas = mgCanvases[pName];
+    const ctx = canvas.getContext("2d");
+    const state = minigameState[pName];
+
+    const now = performance.now();
+    const dt = Math.min(0.05, (now - state.lastTime) / 1000);
+    state.lastTime = now;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // === INPUT ===
+    let input = 0;
+    if(minigameKeys[pName].left.some(k => keys[k])) input -= 1;
+    if(minigameKeys[pName].right.some(k => keys[k])) input += 1;
+
+    input += sticks[pName].x;
+
+    // update angle op basis van input
+    state.angle += input * 120 * dt;
+
+    // BOOST
+    if(boosts[pName]){
+        state.speed += 600 * dt;
+    }
+
+    // GRAVITY / physics
+    state.speed -= 400 * dt;
+    state.speed *= 0.98;
+
+    state.angle += state.speed * dt;
+    state.angle = Math.max(-90, Math.min(90, state.angle));
+
+    // === DRAW LOOP ===
+    ctx.save();
+    ctx.translate(canvas.width/2, canvas.height/2);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(0, 0, 120, Math.PI, 0); // halve cirkel
+    ctx.stroke();
+
+    // DRAW BALL
+    const rad = state.angle * Math.PI / 180;
+    ctx.fillStyle = "#ffcc00";
+    ctx.beginPath();
+    ctx.arc(
+        Math.cos(rad)*120,
+        Math.sin(rad)*120,
+        10,
+        0,
+        Math.PI*2
+    );
+    ctx.fill();
+    ctx.restore();
+
+    // === CHECK SUCCESS ===
+    if(state.angle >= 85){
+        // minigame voltooid
+        state.completed = true;
+        state.active = false;
+        players[pName].inMinigame = false;
+
+        // verberg panel
+        document.getElementById(
+            pName === "P1" ? "panelP1" : "panelP2"
+        ).style.display = "none";
+
+        // teleport naar exit '<'
+        const exit = findExitForLane(players[pName].lane);
+        if (exit) {
+            players[pName].x = exit.x + 0.5;
+            players[pName].y = exit.y + 0.5;
+        }
+
+        // check overlay
+        checkMinigameOverlay();
+        return;
+    }
+
+
+}
 
 
 
 
- // animate minigame
+ // animate BALANCE minigame
 
-function animateMinigame(pName) {
+function animateBalanceMinigame(pName) {
     const canvas = mgCanvases[pName];
     const ctx = canvas.getContext("2d");
     const state = minigameState[pName];
@@ -711,8 +1119,6 @@ function animateMinigame(pName) {
     const s = sticks[pName];
     input += s.x; // x is horizontaal
 
-    console.log(pName, "INPUT:", input); // ✅ hier werkt het
-    console.log("ier werkt et");
 
     //update plankhoek
     state.plankAngle += input * 120  * dt;
@@ -788,7 +1194,7 @@ function animateMinigame(pName) {
         10 // 10px vanaf de top
     );
 
-    requestAnimationFrame(() => animateMinigame(pName));
+
 }
 
 
@@ -796,35 +1202,6 @@ function animateMinigame(pName) {
 
 
 
- //drawminigame
-function drawMinigame(pName, ballColor){
-  const canvas = mgCanvases[pName];
-  const ctx = mgCtxs[pName];
-  const state = minigameState[pName];
-
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  const pivotX = canvas.width/2;
-  const pivotY = canvas.height/2;
-
-  // plank tekenen
-  ctx.save();
-  ctx.translate(pivotX, pivotY);
-  ctx.rotate(state.plankAngle * Math.PI/180);
-  ctx.fillStyle = "#aaa";
-  //ctx.fillRect(-GLOBAL_PLANK_LENGTH/2, -5, GLOBAL_PLANK_LENGTH, 10);
-  ctx.restore();
-
-  // balpositie exact op plank
-  const angleRad = state.plankAngle * Math.PI / 180;
-  const ballWorldX = pivotX + state.ballX * Math.cos(angleRad);
-  const ballWorldY = pivotY + state.ballX * Math.sin(angleRad) - 10;
-
-  // bal tekenen
-  ctx.beginPath();
-  ctx.arc(ballWorldX, ballWorldY, 10, 0, Math.PI*2);
-  ctx.fillStyle = ballColor;
-  ctx.fill();
-}
 
 
 
@@ -840,90 +1217,52 @@ function drawMinigame(pName, ballColor){
     return true;
   }
 
-  // === Checkpoints opbouwen ===
-  const checkpoints = { "1": [], "2": [] };
-  const used = new Set();
+
+
+  // Sorteren rond track center (rechtsonder eerste)
+function checkpointCenter(p){
+    return { x: p.x + 0.5, y: p.y + 0.5 };
+}
+
+
+
+
+function findGreenFieldBounds(){
+  let minX=Infinity, maxX=-Infinity;
+  let minY=Infinity, maxY=-Infinity;
 
   for(let y=0;y<track.length;y++){
     for(let x=0;x<track[y].length;x++){
-      if(track[y][x]!=="C") continue;
-      const key = x+","+y;
-      if(used.has(key)) continue;
-
-      const tiles = [{x,y}];
-      if(track[y+1]?.[x]==="C"){ tiles.push({x,y:y+1}); used.add(x+","+(y+1)); }
-
-      const around = [tileAt(x-1,y), tileAt(x+1,y), tileAt(x,y-1), tileAt(x,y+1)];
-      const lane = around.includes("1") ? "1" : "2";
-      checkpoints[lane].push(tiles);
-      used.add(key);
+      if(track[y][x] !== "G") continue;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
     }
   }
 
-  // Sorteren rond track center (rechtsonder eerste)
-  function checkpointCenter(group){
-    let sx=0, sy=0;
-    for(const t of group){ sx+=t.x+0.5; sy+=t.y+0.5; }
-    return {x:sx/group.length, y:sy/group.length};
-  }
-  const trackCenter = {x: track[0].length/2, y: track.length/2};
-
-  for(const lane of ["1","2"]){
-    checkpoints[lane].sort((a,b)=>{
-      const ca=checkpointCenter(a), cb=checkpointCenter(b);
-      return Math.atan2(ca.y-trackCenter.y, ca.x-trackCenter.x)
-          - Math.atan2(cb.y-trackCenter.y, cb.x-trackCenter.x);
-    });
-    while(true){
-      const c = checkpointCenter(checkpoints[lane][0]);
-      if(c.x>trackCenter.x && c.y>trackCenter.y) break;
-      checkpoints[lane].push(checkpoints[lane].shift());
-    }
+  if (minX === Infinity) {
+    return { x:0, y:0, width: TILE_SIZE*10, height: TILE_SIZE*10 };
   }
 
-
-
- //HELPERS--------
-
-  function findGreenFieldBounds(){
-    let minX=Infinity, maxX=-Infinity;
-    let minY=Infinity, maxY=-Infinity;
-
-    for(let y=0;y<track.length;y++){
-      for(let x=0;x<track[y].length;x++){
-        if(track[y][x] !== "G") continue;
-
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
-    }
-
-    return {
-      x: minX * TILE_SIZE,
-      y: minY * TILE_SIZE,
-      width: (maxX - minX + 1) * TILE_SIZE,
-      height:(maxY - minY + 1) * TILE_SIZE
-    };
-  }
-
-
-
-  function updateMinigameOverlay(){
-    const active =
-        minigameState.P1.active ||
-        minigameState.P2.active;
-
-    minigameOverlay.style.display = active ? "block" : "none";
+  return {
+    x: minX * TILE_SIZE,
+    y: minY * TILE_SIZE,
+    width: (maxX - minX + 1) * TILE_SIZE,
+    height:(maxY - minY + 1) * TILE_SIZE
+  };
 }
+
+
+
 
 
     // === Minigame panel positioning ===
 
 
 
-  function findExitForLane(lane){
+
+    function findExitForLane(lane){
     for(let y=0;y<track.length;y++){
       for(let x=0;x<track[y].length;x++){
         if(track[y][x] !== "<") continue;
@@ -940,7 +1279,10 @@ function drawMinigame(pName, ballColor){
       }
     }
     return null;
-  }
+}
+
+
+
   // === Startpositie ===
   function findStart(){
     for(let y=0;y<track.length;y++){
@@ -967,7 +1309,6 @@ function drawMinigame(pName, ballColor){
     }
 }
 
-  findStart();
 
   // === Input ===
   const keys = {};
@@ -991,6 +1332,7 @@ function setupStick(stickId, player){
     }
 
     function move(e){
+        if(!e.touches || e.touches.length === 0) return;
         const t = e.touches[0];
         const rect = stick.getBoundingClientRect();
         let dx = t.clientX - (rect.left + rect.width/2);
@@ -1021,53 +1363,76 @@ function setupStick(stickId, player){
 
 setupStick("stickP1", "P1");
 setupStick("stickP2", "P2");
+
+
+
   // === Update speler ===
-  function updatePlayer(p, dt){
-    if(p.inMinigame) return; // ⛔ pauzeer speler
+function updatePlayer(p, dt){
+    if(p.inMinigame) return;
 
     let ax=0, ay=0;
     for(const k in p.keys){
-      if(keys[k]){
-        ax+=p.keys[k][0];
-        ay+=p.keys[k][1];
-      }
+        if(keys[k]){
+            ax += p.keys[k][0];
+            ay += p.keys[k][1];
+        }
     }
 
     const s = sticks[p === players.P1 ? "P1" : "P2"];
     ax += s.x;
     ay += s.y;
-        const len=Math.hypot(ax,ay);
-    if (len > 0) {
-      ax /= len;
-      ay /= len;
-      p.angle = Math.atan2(ay, ax);
+
+    const len = Math.hypot(ax, ay);
+    if(len > 0){
+        ax /= len;
+        ay /= len;
+        p.angle = Math.atan2(ay, ax);
     }
 
-    const nx = p.x + ax*SPEED*dt/TILE_SIZE;
-    const ny = p.y + ay*SPEED*dt/TILE_SIZE;
+    const speedX = ax * SPEED * dt / TILE_SIZE;
+    const speedY = ay * SPEED * dt / TILE_SIZE;
 
-    if(walkableTile(p,nx,p.y)) p.x=nx;
-    if(walkableTile(p,p.x,ny)) p.y=ny;
-  }
+    // Bereken stappen op 0.5 tile intervallen
+    const steps = Math.ceil(Math.max(Math.abs(speedX), Math.abs(speedY)) * 2);
+    for (let i = 1; i <= steps; i++) {
+        const nx = p.x + speedX * i / steps;
+        const ny = p.y + speedY * i / steps;
+
+        if(walkableTile(p, nx, p.y)) p.x = nx;
+        if(walkableTile(p, p.x, ny)) p.y = ny;
+
+        // Check triggers op deze tile
+        checkTriggers(p, performance.now()/1000, p === players.P1 ? "P1" : "P2");
+    }
+}
 
   // === Check triggers ===
+
 function checkTriggers(p, now, pName){
     if(p.inMinigame) return;
 
     const tx = Math.floor(p.x);
     const ty = Math.floor(p.y);
-    const tile = tileAt(tx, ty);
+    let tile = tileAt(tx, ty);
 
-    // === MINIGAME TRIGGER (EERST!) ===
-    if(tile === ">" && p.lastTile !== ">" && !p.inMinigame){
-        startMinigame(pName);
-    }
+    // === MINIGAME TRIGGER ===
+    const t = tileAt(tx, ty);
+const right = tileAt(tx + 1, ty);
+
+if (t === ">" && p.lastTile !== ">" && !p.inMinigame) {
+    p.lastTile = ">";
+    if (right === "B") startMinigame(pName, ">B");
+    if (right === "L") startMinigame(pName, ">L");
+    if (right === "J") startMinigame(pName, ">J");
+    return;
+}
 
     // === CHECKPOINTS ===
     const next = checkpoints[p.lane][p.nextCheckpoint];
-    if(next && next.some(t => t.x === tx && t.y === ty)){
-        p.nextCheckpoint++;
-    }
+if (next && Math.abs(next.x + 0.5 - p.x) < 0.6
+         && Math.abs(next.y + 0.5 - p.y) < 0.6) {
+  p.nextCheckpoint++;
+}
 
     // === START / FINISH ===
     if(tile === "S" && p.lastTile !== "S"){
@@ -1083,7 +1448,7 @@ function checkTriggers(p, now, pName){
             p.nextCheckpoint = 0;
             if(!p.bestLap || lapTime < p.bestLap) p.bestLap = lapTime;
 
-            const totalLaps = +document.getElementById("lapInput").value;
+            const totalLaps = parseInt(document.getElementById("lapInput").value, 10);
             if(p.lap >= totalLaps && !p.finishTime){
                 p.finishTime = now;
             }
@@ -1093,40 +1458,38 @@ function checkTriggers(p, now, pName){
     p.lastTile = tile;
 }
 
-
-
-
-
   // === Tekenen ===
-  function drawTrack(){
-    for(let y=0;y<track.length;y++){
-      for(let x=0;x<track[y].length;x++){
-        switch(track[y][x]){
-          case "|": ctx.fillStyle="#b30000"; break;
-          case "1": case "2": ctx.fillStyle="#555"; break;
-          case "=": ctx.fillStyle="#777"; break;
-          case "G": ctx.fillStyle="green"; break;
-          case "C":
-            let active=false;
-            for(const p of Object.values(players)){
-              const cp = checkpoints[p.lane][p.nextCheckpoint];
-              if(cp && cp.some(t=>t.x===x && t.y===y)){ active=true; break; }
+function drawTrack() {
+    for (let y = 0; y < track.length; y++) {
+        for (let x = 0; x < track[y].length; x++) {
+            const tile = track[y][x];
+            let color;
+
+            if (tile === "S") color = "white";       // start = wit
+            else if (tile === ">") color = "#ff9900"; // trigger = geel-oranje
+            else if (tile === "<") color = "#39ff14"; // exit = neon groen
+            else {
+                switch(tile) {
+                    case "|": color = "#b30000"; break;
+                    case "1": case "2": color = "#555"; break;
+                    case "=": color = "#777"; break;
+                    case "G": color = "green"; break;
+                    case "C": color = "purple"; break;
+                    case "*": case "%": color = "white"; break;
+                    case "H": color = "cyan"; break;
+                    case "B": color = "blue"; break;   // balance
+                    case "L": color = "red"; break;    // looping
+                    case "J": color = "purple"; break; // jump
+                    default: color = "#777";
+                }
             }
-            ctx.fillStyle=active?"green":"purple";
-            break;
-          case "S": ctx.fillStyle="white"; break;
-          case "*": case "%": ctx.fillStyle="white"; break;
-          case ">": case "<": case "O": ctx.fillStyle="orange"; break;
-          case "N": ctx.fillStyle="#000"; break;
-          case "Y": ctx.fillStyle="yellow"; break;
-          case "H": ctx.fillStyle="cyan"; break;
-          case "B": ctx.fillStyle="#999"; break;
-          default: ctx.fillStyle="#777";
+
+            ctx.fillStyle = color;
+            ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
-        ctx.fillRect(x*TILE_SIZE,y*TILE_SIZE,TILE_SIZE,TILE_SIZE);
-      }
     }
-  }
+}
+
 function drawPlayers() {
     for (const [key, p] of Object.entries(players)) {
         const sprite = carSprites[key];
@@ -1150,39 +1513,37 @@ function drawPlayers() {
 
 
 
-
-
-
 function drawHUD() {
-    const laps = +document.getElementById("lapInput").value;
+    const laps = parseInt(document.getElementById("lapInput").value, 10);
     const now = performance.now() / 1000;
 
-    const p1CurrentLap = players.P1.started ? (now - players.P1.lapStart) : 0;
-    const p2CurrentLap = players.P2.started ? (now - players.P2.lapStart) : 0;
+    // P1 stats
+    const p1 = players.P1;
+    const p1Stats = [];
+    p1Stats.push(`Lap: ${p1.lap}/${laps}`);
+    p1Stats.push(`Best: ${fmt(p1.bestLap)}`);
+    if (p1.started) p1Stats.push(`Current: ${fmt(now - p1.lapStart)}`);
+    document.getElementById("statsP1").textContent = p1Stats.join(" | ");
 
-    // Alleen de spans updaten, input blijft intact
-    document.getElementById("statsP1").textContent =
-        `Lap ${players.P1.lap}/${laps} | Current: ${fmt(p1CurrentLap)} | Best: ${fmt(players.P1.bestLap)} | Total: ${fmt(players.P1.totalTime)}`;
-
-    document.getElementById("statsP2").textContent =
-        `Lap ${players.P2.lap}/${laps} | Current: ${fmt(p2CurrentLap)} | Best: ${fmt(players.P2.bestLap)} | Total: ${fmt(players.P2.totalTime)}`;
+    // P2 stats
+    const p2 = players.P2;
+    const p2Stats = [];
+    p2Stats.push(`Lap: ${p2.lap}/${laps}`);
+    p2Stats.push(`Best: ${fmt(p2.bestLap)}`);
+    if (p2.started) p2Stats.push(`Current: ${fmt(now - p2.lapStart)}`);
+    document.getElementById("statsP2").textContent = p2Stats.join(" | ");
 }
 
   // === Loop ===
-let lastTime = performance.now();
+
+  let lastTime = performance.now();
 let frameCount = 0;
 
-
-  function uploadEndScores() {
-      if(players.P1.lap > 0) uploadScore(document.getElementById("nameP1").value, players.P1.bestLap)
-      if(players.P2.lap > 0) uploadScore(document.getElementById("nameP2").value, players.P2.bestLap)
-  }
-
-function loop(now){
+function loop(now) {
     const dt = (now - lastTime) / 1000;
     lastTime = now;
 
-    if(!gameOver){
+    if (!gameOver) {
 
         // === Update spelers (pauzeert automatisch in minigame) ===
         updatePlayer(players.P1, dt);
@@ -1190,17 +1551,11 @@ function loop(now){
 
         const currentTime = performance.now() / 1000;
 
-        // === Check triggers ===
-        checkTriggers(players.P1, currentTime, "P1");
-        checkTriggers(players.P2, currentTime, "P2");
+
 
         // === Update totale tijd (niet in minigame) ===
-       if(players.P1.started) {
-    players.P1.totalTime += dt;
-}
-if(players.P2.started) {
-    players.P2.totalTime += dt;
-}
+        if (players.P1.started) players.P1.totalTime += dt;
+        if (players.P2.started) players.P2.totalTime += dt;
 
         // === Tekenen ===
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1208,52 +1563,46 @@ if(players.P2.started) {
         drawPlayers();
         drawHUD();
 
-        // === Finish check (niet elke frame) ===
+        // === Finish check (elke 20 frames) ===
         frameCount++;
-        if(frameCount >= 20){
+        if (frameCount >= 20) {
             frameCount = 0;
 
-            // spelers die gefinisht zijn
             const finishedPlayers = Object.entries(players)
                 .filter(([_, p]) => p.finishTime != null);
 
-            if(finishedPlayers.length > 0){
-    // laagste finishTime wint
-    finishedPlayers.sort((a, b) =>
-        a[1].finishTime - b[1].finishTime
-    );
+            if (!gameOver && finishedPlayers.length > 0) {
+                // Laagste finishTime wint
+                finishedPlayers.sort((a, b) => a[1].finishTime - b[1].finishTime);
 
-    const winnerKey = finishedPlayers[0][0]; // "P1" of "P2"
+                const winnerKey = finishedPlayers[0][0]; // "P1" of "P2"
+                const winnerName = document.getElementById(
+                    winnerKey === "P1" ? "nameP1" : "nameP2"
+                ).value || winnerKey;
 
-const winnerName =
-    document.getElementById(
-        winnerKey === "P1" ? "nameP1" : "nameP2"
-    ).value || winnerKey;
+                gameOver = true;
+                document.getElementById("winnerText").textContent = winnerName + " WINS!";
+                document.getElementById("overlay").style.display = "flex";
 
-gameOver = true;
-document.getElementById("winnerText").textContent =
-    winnerName + " WINS!";
-document.getElementById("overlay").style.display = "flex";
-
-    // ✅ Upload hier de best_lap voor iedere speler die toch een ronde gereden heeft
-        // Upload scores naar Supabase
-    uploadEndScores();
-}
+                // ✅ Upload hier de best_lap voor iedere speler die toch een ronde gereden heeft
+                uploadEndScores();
+            }
         }
     }
 
+    // ✅ Vraag volgende animatieframe aan
     requestAnimationFrame(loop);
 }
 
 
-requestAnimationFrame(loop);
-// Verberg mobile controls op apparaten zonder touch
-const hasTouch =
-  ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+// Start de game-loop
+lastTime = performance.now();
 
-if (!hasTouch) {
-  document.getElementById("mobileControls").style.display = "none";
-}
+
+
+
+
+
   </script>
 
 <script type="module">
@@ -1264,13 +1613,14 @@ const supabaseKey = 'sb_publishable_lun6Mhjl_0P4vqQNaPGyKw_OKNwJ9cW'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 window.uploadScore = function(playerName, bestLap) {
-    if (!playerName || bestLap == null) return
-    supabase.from('scores').insert([{player_name: playerName, lap_time: bestLap}])
+    if (!playerName || bestLap == null) return;
+    supabase.from(currentTable).insert([{player_name: playerName, lap_time: bestLap}])
         .then(({data, error}) => {
             if(error) console.error('Supabase error:', error)
-            else console.log('Score uploaded:', data)
-        })
+            else console.log(`Score uploaded to ${currentTable}:`, data)
+        });
 }
+
 
 window.uploadEndScores = function() {
     if(players.P1.lap > 0) uploadScore(document.getElementById("nameP1").value, players.P1.bestLap)
@@ -1281,10 +1631,10 @@ window.uploadEndScores = function() {
 
 <script>
 /* === PLAYER NAME PERSISTENCE === */
+
 const nameInputP1 = document.getElementById("nameP1");
 const nameInputP2 = document.getElementById("nameP2");
-const lapcount = document.getElementsByName("LapInput");
-
+const lapInput = document.getElementById("lapInput");
 // Load saved names
 const savedP1 = localStorage.getItem("circuitracer_name_p1");
 const savedP2 = localStorage.getItem("circuitracer_name_p2");
