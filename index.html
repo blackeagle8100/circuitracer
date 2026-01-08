@@ -647,17 +647,6 @@ const ctx = canvas.getContext("2d");
   let gameOver = false;
   let currentTable = "LVL1";
 
-function positionMinigamePanel(pName) {
-    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
-    if (!panel) return;
-
-    const wrapper = document.getElementById("gameWrapper");
-    const rect = wrapper.getBoundingClientRect();
-    // Plaats boven de canvas (bijvoorbeeld)
-    panel.style.left = "50%";
-    panel.style.top = "50%";
-    panel.style.transform = "translate(-50%, -50%)";
-}
 
 
 function initTrackData() {
@@ -1255,6 +1244,36 @@ function findGreenFieldBounds(){
 
 
     // === Minigame panel positioning ===
+function positionMinigamePanel(pName){
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    const canvasRect = canvas.getBoundingClientRect();
+
+    // Breedte = max 50% van canvas
+    const PANEL_W = canvasRect.width / 2 - 20; // 20px marge
+    // Hoogte = max 80% van canvas, min 150px
+    const PANEL_H = Math.max(150, Math.min(canvasRect.height * 0.8, canvasRect.height * 0.8));
+
+    panel.style.width = PANEL_W + "px";
+    panel.style.height = PANEL_H + "px";
+
+    // Links/rechts positioneren
+    panel.style.left = pName === "P1"
+        ? canvasRect.left + 10 + "px"
+        : canvasRect.left + canvasRect.width / 2 + 10 + "px";
+
+    // Verticaal centreren
+    panel.style.top = canvasRect.top + (canvasRect.height - PANEL_H) / 2 + "px";
+
+    resizeMinigameCanvas(pName);
+}
+
+function resizeMinigameCanvas(pName){
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    const canvasMG = mgCanvases[pName];
+
+    canvasMG.width = panel.clientWidth - 12;
+    canvasMG.height = panel.clientHeight - 20;
+}
 
 
 
