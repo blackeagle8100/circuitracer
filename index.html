@@ -1202,28 +1202,17 @@ function animateBalanceMinigame(pName) {
 }
 
 
-function walkableTile(p, x, y) {
+function walkableTile(p, x, y){
     const t = tileAt(Math.floor(x), Math.floor(y));
-    if (!t) return false;          // buiten de track = niet wandelbaar
-    if (["|", "G", "="].includes(t)) return false; // muren, gras, enz. niet wandelbaar
-
-    // Lanes check
-    if (t === "1" && p.lane !== "1") return false;
-    if (t === "2" && p.lane !== "2") return false;
-
-    // Start/Hill tiles
-    if (t === "H" && p.lane !== "1") return false;
-    if (t === "Y" && p.lane !== "2") return false;
-
-    // Balans / minigame triggers zijn normaal begaanbaar
-    if (["B", "L", "J"].includes(t)) return true;
-
-    // Start/Finish tiles zijn begaanbaar
-    if (t === "S" || t === "<" || t === ">") return true;
-
-    // Alles wat niet expliciet blokkend is
+    if (!t) return false;       // buiten track blokkeren
+    if(["|","G","="].includes(t)) return false;
+    if(t==="1" && p.lane!=="1") return false;
+    if(t==="2" && p.lane!=="2") return false;
+    if(t==="H" && p.lane!=="1") return false;
+    if(t==="Y" && p.lane!=="2") return false;
     return true;
 }
+
 
 
 
