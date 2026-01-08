@@ -439,6 +439,25 @@ canvas#game {
   }
   let currentTrack = null;
   let track = null;
+
+
+
+  const CONFIG = {
+    TILE_SIZE: 16,
+    SPEED: 400,
+    BASE_PLANK: 220,
+    MIN_PLANK: 160,
+    MAX_PLANK: 260,
+    MAX_ANGLE: 35,
+    BALANCE_DURATION: 3,
+    BALANCE_ZONE: 30,
+    GRAVITY: 420,
+    FRICTION: 0.98
+};
+
+let GLOBAL_PLANK_LENGTH = CONFIG.BASE_PLANK;
+
+
     // Minigame instellingen
   // === MINIGAME SETTINGS ===
   // Map van trigger tiles naar minigames
@@ -460,9 +479,10 @@ canvas#game {
   const used = new Set();
   const boosts = { P1: false, P2: false };
 
+  const MINIGAME_MAPPING = { "B": "balance", "L": "looping", "J": "jump" };
 
 
-
+  const activeMinigames = { P1: null, P2: null }; // tracks active requestAnimationFrame
   // KEYMAPPING
   // PC toetsen
   window.addEventListener("keydown", e=>{
@@ -474,23 +494,27 @@ canvas#game {
 
 
   // === BOOST BUTTON (mouse + touch, 1x setup) ===
-const boostP1 = document.getElementById("boostP1");
-const boostP2 = document.getElementById("boostP2");
-["touchstart","mousedown"].forEach(ev=>{
-  boostP1.addEventListener(ev, e=>{
-    e.preventDefault();
-    boosts.P1 = true;
+window.addEventListener("DOMContentLoaded", () => {
+  const boostP1 = document.getElementById("boostP1");
+  const boostP2 = document.getElementById("boostP2");
+
+  ["touchstart","mousedown"].forEach(ev=>{
+    boostP1.addEventListener(ev, e=>{
+      e.preventDefault();
+      boosts.P1 = true;
+    });
+    boostP2.addEventListener(ev, e=>{
+      e.preventDefault();
+      boosts.P2 = true;
+    });
   });
-  boostP2.addEventListener(ev, e=>{
-    e.preventDefault();
-    boosts.P2 = true;
+
+  ["touchend","mouseup","touchcancel","mouseleave"].forEach(ev=>{
+    boostP1.addEventListener(ev, ()=>boosts.P1=false);
+    boostP2.addEventListener(ev, ()=>boosts.P2=false);
   });
 });
 
-["touchend","mouseup","touchcancel","mouseleave"].forEach(ev=>{
-  boostP1.addEventListener(ev, ()=>boosts.P1=false);
-  boostP2.addEventListener(ev, ()=>boosts.P2=false);
-});
 
 
   // Veilig: boost reset als tab focus verliest
@@ -656,18 +680,29 @@ const ctx = canvas.getContext("2d");
   let currentTable = "LVL1";
 
 
-function showBoostHint(pName) {
-    if(isMobile) return; // mobiele apparaten gebruiken de knoppen
-    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+function showBoostUI(pName){
+    const boostBtn = document.getElementById(pName==="P1"?"boostP1":"boostP2");
+    const panel = document.getElementById(pName==="P1"?"panelP1":"panelP2");
     const hint = panel.querySelector(".boostHint");
-    hint.style.display = "block";
+
+    if(isMobile){
+        boostBtn.style.display = "block";
+        hint.style.display = "none";
+    } else {
+        boostBtn.style.display = "none";
+        hint.style.display = "block";
+    }
 }
 
-function hideBoostHint(pName) {
-    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+function hideBoostUI(pName){
+    const boostBtn = document.getElementById(pName==="P1"?"boostP1":"boostP2");
+    const panel = document.getElementById(pName==="P1"?"panelP1":"panelP2");
     const hint = panel.querySelector(".boostHint");
+
+    boostBtn.style.display = "none";
     hint.style.display = "none";
 }
+
 
 
 
@@ -758,22 +793,17 @@ function selectTrack(name){
 
 
 
-function resizeMinigameCanvas(p){
-    const panel = document.getElementById(p === "P1" ? "panelP1" : "panelP2");
-    const canvas = mgCanvases[p];
+function resizeMinigameCanvas(pName){
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    const canvasMG = mgCanvases[pName];
 
-    canvas.width  = panel.clientWidth - 12;
-    canvas.height = panel.clientHeight - 20;
+    canvasMG.width  = panel.clientWidth - 12;
+    canvasMG.height = panel.clientHeight - 20;
 
-
-    // 🔑 eerlijk schalen op basis van groen veld
+    // Schaal plank op basis van green field
     const green = findGreenFieldBounds();
-    const scaleX = document.getElementById("game").getBoundingClientRect().width / document.getElementById("game").width;
-
-    //GLOBAL_PLANK_LENGTH = green.width * scaleX * 0.35;
-
-    // safety clamp (extreme schermen)
-    GLOBAL_PLANK_LENGTH = Math.max(160, Math.min(GLOBAL_PLANK_LENGTH, 260));
+    const scaleX = canvas.getBoundingClientRect().width / canvas.width;
+    GLOBAL_PLANK_LENGTH = Math.max(CONFIG.MIN_PLANK, Math.min(green.width * scaleX * 0.35, CONFIG.MAX_PLANK));
 }
 
 
@@ -868,34 +898,26 @@ function tileAt(tx, ty){
 
     // Start minigame voor speler p (P1 of P2)
 
-
-function startMinigame(pName, tile) {
+function startMinigame(pName, tile){
     if(players[pName].inMinigame) return;
 
-    const minigamesToStart = [];
+    const mgType = MINIGAME_MAPPING[tile[1]];
+    if(!mgType) return;
 
-    // Bepaal welke minigame(s) we moeten starten op basis van tile
-    switch(tile){
-        case ">B": // Balance
-            minigamesToStart.push("balance");
-            break;
-        case ">L": // Looping
-            minigamesToStart.push("looping");
-            break;
-        case ">J": // Jump
-            minigamesToStart.push("jump");
-            break;
-        default:
-            console.warn("Onbekende minigame tile:", tile);
-            return;
-    }
-
-    // ✅ Set speler in minigame
     players[pName].inMinigame = true;
-    minigameOverlay.style.display = "block";
+    if(activeMinigames[pName]) cancelAnimationFrame(activeMinigames[pName]);
 
-    // ✅ Start minigames één voor één
-    runMinigamesSequence(pName, minigamesToStart);
+    const callback = () => {
+        players[pName].inMinigame = false;
+        activeMinigames[pName] = null;
+        checkMinigameOverlay();
+    };
+
+    switch(mgType){
+        case "balance": startBalanceMinigame(pName, callback); break;
+        case "looping": startLoopingMinigame(pName, callback); break;
+        case "jump": startJumpMinigame(pName, callback); break;
+    }
 }
 
 function runMinigamesSequence(pName, sequence) {
@@ -1317,13 +1339,7 @@ function positionMinigamePanel(pName){
     resizeMinigameCanvas(pName);
 }
 
-function resizeMinigameCanvas(pName){
-    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
-    const canvasMG = mgCanvases[pName];
 
-    canvasMG.width = panel.clientWidth - 12;
-    canvasMG.height = panel.clientHeight - 20;
-}
 
 
 
@@ -1479,29 +1495,24 @@ function checkTriggers(p, now, pName){
 
     const tx = Math.floor(p.x);
     const ty = Math.floor(p.y);
-    let tile = tileAt(tx, ty);
-
-    // === MINIGAME TRIGGER ===
     const t = tileAt(tx, ty);
-const right = tileAt(tx + 1, ty);
+    const nextTile = tileAt(tx+1, ty);
 
-if (t === ">" && p.lastTile !== ">" && !p.inMinigame) {
-    p.lastTile = ">";
-    if (right === "B") startMinigame(pName, ">B");
-    if (right === "L") startMinigame(pName, ">L");
-    if (right === "J") startMinigame(pName, ">J");
-    return;
-}
+    // Minigame trigger
+    if(t === ">" && p.lastTile !== ">" && MINIGAME_MAPPING[nextTile]){
+        p.lastTile = ">";
+        startMinigame(pName, ">" + nextTile);
+        return;
+    }
 
-    // === CHECKPOINTS ===
+    // Checkpoints
     const next = checkpoints[p.lane][p.nextCheckpoint];
-if (next && Math.abs(next.x + 0.5 - p.x) < 0.6
-         && Math.abs(next.y + 0.5 - p.y) < 0.6) {
-  p.nextCheckpoint++;
-}
+    if(next && Math.abs(next.x+0.5 - p.x)<0.6 && Math.abs(next.y+0.5 - p.y)<0.6){
+        p.nextCheckpoint++;
+    }
 
-    // === START / FINISH ===
-    if(tile === "S" && p.lastTile !== "S"){
+    // Start/finish
+    if(t === "S" && p.lastTile !== "S"){
         if(!p.started){
             p.started = true;
             p.lapStart = now;
@@ -1514,14 +1525,12 @@ if (next && Math.abs(next.x + 0.5 - p.x) < 0.6
             p.nextCheckpoint = 0;
             if(!p.bestLap || lapTime < p.bestLap) p.bestLap = lapTime;
 
-            const totalLaps = parseInt(document.getElementById("lapInput").value, 10);
-            if(p.lap >= totalLaps && !p.finishTime){
-                p.finishTime = now;
-            }
+            const totalLaps = parseInt(document.getElementById("lapInput").value,10);
+            if(p.lap >= totalLaps && !p.finishTime) p.finishTime = now;
         }
     }
 
-    p.lastTile = tile;
+    p.lastTile = t;
 }
 
   // === Tekenen ===
