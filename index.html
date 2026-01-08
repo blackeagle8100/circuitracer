@@ -374,23 +374,22 @@ canvas#game {
 
 
 
-    <div id="minigameOverlay">
-      <div id="panelP1" class="minigamePanel">
+    <div id="panelP1" class="minigamePanel">
         <div>Player 1</div>
         <canvas id="minigameCanvas1" width="300" height="150"></canvas>
         <div id="minigameStatus1"></div>
-      </div>
+        <div class="boostHint" style="color:#ffcc00; font-size:14px; margin-top:5px; display:none;">
+          Press SPACE for BOOST!
+        </div>
+    </div>
 
-      <div id="panelP2" class="minigamePanel">
+    <div id="panelP2" class="minigamePanel">
         <div>Player 2</div>
         <canvas id="minigameCanvas2" width="300" height="150"></canvas>
         <div id="minigameStatus2"></div>
-      </div>
-    </div>
-
-    <div id="overlay" style="display:none">
-      <span id="winnerText">WINNER</span>
-      <button id="newGameBtn">NEW GAME</button>
+        <div class="boostHint" style="color:#ffcc00; font-size:14px; margin-top:5px; display:none;">
+          Press N for BOOST!
+        </div>
     </div>
 
 
@@ -655,6 +654,20 @@ const ctx = canvas.getContext("2d");
   let currentTable = "LVL1";
 
 
+function showBoostHint(pName) {
+    if(isMobile) return; // mobiele apparaten gebruiken de knoppen
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    const hint = panel.querySelector(".boostHint");
+    hint.style.display = "block";
+}
+
+function hideBoostHint(pName) {
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    const hint = panel.querySelector(".boostHint");
+    hint.style.display = "none";
+}
+
+
 
 function initTrackData() {
     // Maak arrays leeg voor beide lanes
@@ -827,7 +840,24 @@ function resizeCanvas() {
  window.addEventListener("resize", checkOrientation);
  window.addEventListener("orientationchange", checkOrientation);
 
+function positionBoostButton(pName){
+    const boost = document.getElementById(pName === "P1" ? "boostP1" : "boostP2");
+    const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+    const panelRect = panel.getBoundingClientRect();
 
+    boost.style.display = "block";
+    boost.style.position = "absolute";
+
+    if(pName === "P1"){
+        // rechts van P1 panel
+        boost.style.left = Math.min(window.innerWidth - boost.offsetWidth - 5, panelRect.right + 10) + "px";
+    } else {
+        // links van P2 panel
+        boost.style.left = Math.max(5, panelRect.left - boost.offsetWidth - 10) + "px";
+    }
+
+    boost.style.top = panelRect.top + (panelRect.height/2 - boost.offsetHeight/2) + "px";
+}
 
 function tileAt(tx, ty){
     if (!track[ty] || !track[ty][tx]) return null;
@@ -905,24 +935,27 @@ function startBalanceMinigame(pName, callback){
     panel.style.display = "flex";
     positionMinigamePanel(pName);
 
-    //  Boost-knoppen **verbergen** voor alle andere minigames
+    // Boost-knoppen **verbergen** voor Balance minigame
     document.getElementById("boostControls").style.display = "none";
 
-    function anim() {
+    function anim(){
         if(!state.active){
             panel.style.display = "none";
             players[pName].inMinigame = false;
+
             if(callback) callback();
             return;
         }
+
+        // ❌ Fout: animateLoopingMinigame(pName);
+        // ✅ Correct:
         animateBalanceMinigame(pName);
+
         requestAnimationFrame(anim);
     }
+
     requestAnimationFrame(anim);
 }
-
-
-
 
 
 
@@ -942,28 +975,21 @@ function startLoopingMinigame(pName, callback){
     panel.style.display = "flex";
     positionMinigamePanel(pName);
 
-    // ✅ Toon boost-knoppen **op panel zelf**
+    // Toon boost-knoppen alleen op mobiel
     const boost = document.getElementById(pName === "P1" ? "boostP1" : "boostP2");
-    boost.style.display = "block";
-    const panelRect = panel.getBoundingClientRect();
+    boost.style.display = isMobile ? "block" : "none";
 
-    if(pName === "P1"){
-        // boost rechts van panel
-        boost.style.left = (panelRect.right + 10) + "px";
-    } else {
-        // boost links van panel
-        boost.style.left = (panelRect.left - boost.offsetWidth - 10) + "px";
-    }
-    boost.style.top = (panelRect.top + panelRect.height/2 - boost.offsetHeight/2) + "px";
-    boost.style.position = "absolute";
+    // ✅ Desktop hint
+    if(!isMobile) showBoostHint(pName);
 
     function anim(){
         if(!state.active){
             panel.style.display = "none";
             players[pName].inMinigame = false;
 
-            // ✅ verberg boost-knoppen direct
+            // Verberg boost-knoppen / hint
             boost.style.display = "none";
+            hideBoostHint(pName);
 
             if(callback) callback();
             return;
@@ -973,6 +999,9 @@ function startLoopingMinigame(pName, callback){
     }
     requestAnimationFrame(anim);
 }
+
+
+
 
 
 
