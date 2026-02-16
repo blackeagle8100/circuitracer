@@ -1,0 +1,421 @@
+/* =========================================================
+ J OUW BESTAANDE *CSS (ongewijzigd, zoals je stuurde)
+ ========================================================= */
+body {
+    background:#111;
+    color:white;
+    font-family:monospace;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    touch-action: none;
+}
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+h2 { display: none !important; }
+/* ===== TOPBAR===== */
+#topBar {
+width: 100%;
+height: 48px;
+background: rgba(0,0,0,0.85);
+border-bottom: 2px solid #333;
+display: flex;
+justify-content: center; /*alles in het midden */
+align-items: center;
+box-sizing: border-box;
+}
+
+#centerBar {
+display: flex;
+align-items: center;
+gap: 20px;              /* ruimte tussen laps | scoreboard | hud */
+}
+#lapContainer input {
+width: 50px;
+}
+/* HUD gecentreerd */
+#hud {
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+font-size: 14px;
+white-space: nowrap;
+}
+
+#overlay {
+position:fixed;
+top:0; left:0; right:0; bottom:0;
+background:rgba(0,0,0,0.85);
+color:white;
+font-size:48px;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+z-index:30;
+gap:20px;
+}
+
+#mobileControls {
+position: fixed;
+bottom: 5px;
+left: 0;
+right: 0;
+height: 35%;
+pointer-events: auto;
+display: flex;
+justify-content: space-between;
+padding: 0 15px;
+box-sizing: border-box;
+z-index: 12;
+}
+
+.stick {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    pointer-events: auto;
+    touch-action: none;
+}
+
+#stickP1 { margin-left: 10px; }
+#stickP2 { margin-right: 10px; }
+
+.knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 50px;
+    height: 50px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#minigameOverlay {
+position: fixed;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+display: none;
+pointer-events: none;
+z-index: 25;
+}
+
+.minigamePanel {
+    position: absolute;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0,0,0,0.75);
+    border: 2px solid white;
+    padding: 6px;
+    pointer-events: auto;
+    min-width: 20px;
+    min-height: 80px;
+    width: 100%; /* default */
+    height: auto; /* default */
+    max-height: 80%;
+    display: none;
+    box-sizing: border-box;
+}
+
+#scoreboardButtonContainer {
+display: flex;
+align-items: center;
+justify-content: center;
+margin: 0 10px; /* beetje ruimte tussen lap counter en HUD */
+}
+
+.scoreboardButton {
+    display: inline-block;
+    padding: 8px 15px;
+    font-size: 1.2rem; /* kleiner dan game-knop, past beter */
+    font-weight: bold;
+    color: #ffcc00;             /* gele letters */
+    background-color: red;  /* rood */
+    border: 2px solid #ffff66;
+    border-radius: 8px;
+    text-decoration: none;
+    box-shadow: 0 0 15px #ffff66;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+}
+
+.playerRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.playerRow label {
+    width: 28px;
+    text-align: right;
+}
+
+.playerRow input {
+    width: 60px;
+}
+
+.stats {
+    min-width: 420px;
+    font-family: monospace;
+}
+
+.scoreboardButton:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px #ffff66;
+    background-color: green; /* groen bij hover */
+}
+
+.scoreboardButton:active {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px #ffff66;
+    background-color: green; /* groen bij hover */
+}
+
+/* Responsive tweaks */
+@media(max-width:900px){
+    .scoreboardButton {
+        font-size: 1rem;
+        padding: 6px 12px;
+    }
+}
+
+#gameWrapper {
+display: none;
+
+position: relative;
+width: 100%;
+height: calc(100vh - 48px);
+max-height: calc(100vh - 48px);
+
+display: flex;
+justify-content: center;
+align-items: center;
+overflow: hidden;
+z-index: 10;
+}
+
+#levelSelect {
+display : none;
+position: absolute;
+z-index: 100;
+}
+
+}
+
+#game {
+max-width: 100%;
+max-height: 100%;
+image-rendering: pixelated;
+}
+
+#newGameBtn {
+font-size:24px;
+padding:10px 20px;
+cursor:pointer;
+}
+
+#boostControls {
+display: none; /* default hidden */
+position: absolute;
+pointer-events: auto;
+z-index: 20;
+}
+#boostControls button {
+padding: 15px 20px;
+font-size: 18px;
+}
+/*PHONE/TABLET CONTROLLERS*/
+@media (max-width: 900px) and (orientation: landscape) {
+    #mobileControls {
+    display: block;
+    position: fixed;
+    bottom: 0; /* Stick container onderaan */
+    left: 0;
+    right: 0;
+    height: 30%; /* of wat past */
+    pointer-events: none;
+    z-index: 20;
+    }
+    #boostControls {
+    display: none; /* standaard verborgen */
+    }
+    .stick {
+        position: absolute;
+        bottom: 5%; /* afstand vanaf container bottom */
+        width: 120px;
+        height: 120px;
+        opacity: 0.6;
+        pointer-events: auto;
+    }
+
+    #stickP1 { left: 5%; }
+    #stickP2 { right: 5%; }
+}
+@media (max-width: 600px) and (orientation: landscape) {
+
+    .stick {
+        width: 120px;
+        height: 120px;
+    }
+    #topBar {
+    font-size: 11px;
+    }
+}
+@media (min-width: 900px) and (max-width: 1200px) {
+    /* tablet fine-tuning */
+}
+
+
+/* =========================================================
+ S COREBOARD-PAGI*NA EXTRA CSS (past bij jouw look)
+ (alles onder #sbPage zodat er zo weinig mogelijk botst)
+ ========================================================= */
+#sbPage{
+width: 100%;
+height: calc(100vh - 48px);
+display:flex;
+justify-content:center;
+align-items:flex-start;
+overflow:hidden;
+}
+
+#sbPanel{
+width: min(980px, 96vw);
+height: 100%;
+padding: 12px;
+box-sizing: border-box;
+display:flex;
+flex-direction:column;
+gap: 10px;
+}
+
+/* Tabs (Home / X-mass Tree Race) */
+#sbTabs{
+display:flex;
+justify-content:center;
+gap: 10px;
+flex-wrap: wrap;
+}
+.sbTab{
+    cursor:pointer;
+    user-select:none;
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: 2px solid #333;
+    background: rgba(255,255,255,0.06);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+}
+.sbTab.active{
+    border-color: #ffff66;
+    box-shadow: 0 0 12px rgba(255,255,102,0.35);
+}
+
+/* Sections */
+.sbSection{
+    display:none;
+    width:100%;
+    flex: 1 1 auto;
+    overflow:hidden;
+}
+.sbSection.active{ display:block; }
+
+#sbHomeCard, #sbRaceCard{
+width:100%;
+height: 100%;
+border: 2px solid #333;
+background: rgba(0,0,0,0.55);
+border-radius: 12px;
+box-sizing: border-box;
+padding: 12px;
+overflow:hidden;
+}
+
+/* Home boodschap */
+#sbHomeCard{
+display:flex;
+align-items:center;
+justify-content:center;
+text-align:center;
+}
+#sbHomeMsg{
+font-size: 18px;
+line-height: 1.4;
+font-weight: 800;
+}
+#sbHomeMsg small{
+display:block;
+margin-top: 8px;
+opacity: 0.9;
+font-weight: 700;
+}
+
+/* Year picker */
+#sbYearRow{
+display:flex;
+justify-content:center;
+align-items:center;
+gap: 10px;
+flex-wrap: wrap;
+margin-bottom: 10px;
+}
+.sbYearBtn{
+    cursor:pointer;
+    user-select:none;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 2px solid #333;
+    background: rgba(255,255,255,0.06);
+    color: white;
+    font-size: 14px;
+    font-weight: 800;
+}
+.sbYearBtn.active{
+    border-color: #ffff66;
+    box-shadow: 0 0 12px rgba(255,255,102,0.35);
+}
+
+/* Score container: scrollbaar, want html/body overflow hidden */
+#sbScoreContainer{
+height: calc(100% - 55px);
+overflow:auto;
+border: 2px solid #333;
+border-radius: 12px;
+background: rgba(0,0,0,0.55);
+}
+
+/* Score row */
+.sbRow{
+    display:flex;
+    gap: 10px;
+    align-items:center;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 14px;
+}
+.sbRow strong{ color: #ffcc00; }
+.sbName{
+    flex:1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.sbTime{
+    font-variant-numeric: tabular-nums;
+    opacity: 0.95;
+}
+
+/* kleine helper text */
+#sbHint{
+margin-top: 8px;
+opacity: 0.85;
+font-size: 12px;
