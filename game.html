@@ -1,0 +1,113 @@
+  <!DOCTYPE html>
+  <html lang="nl">
+  <head>
+  <meta charset="UTF-8">
+  <title>Circuit Racer V1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  </head>
+<body>
+<div id="trackMenu" style="
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.9);color:white;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  gap:20px;z-index:50;
+">
+
+  <h1>Select Track</h1>
+
+  <div style="
+    display:flex;
+    gap:40px;
+    width:min(900px, 92vw);
+    justify-content:center;
+    align-items:flex-start;
+  ">
+
+    <!-- STUNT -->
+    <div style="flex:1; max-width:420px;">
+      <h1 style="margin:0 0 12px 0; text-align:center;">STUNT</h1>
+      <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px;">
+        <li><button id="track1Btn">Track 1<br>Balance</button></li>
+        <li><button id="track2Btn">Track 2<br>Loop</button></li>
+        <li><button id="track3Btn">Track 3<br>Jump</button></li>
+      </ul>
+    </div>
+
+    <!-- NORMAL -->
+    <div style="flex:1; max-width:420px;">
+      <h1 style="margin:0 0 12px 0; text-align:center;">NORMAL</h1>
+      <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px;">
+        <li><button id="track4Btn">Track 4<br>Easy <br>Endurance</button></li>
+        <li><button id="track5Btn">Track 5<br>Medium<br> Endurance</button></li>
+        <li><button id="track6Btn">Track 6<br>Hard<br> Endurance</button></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+<div id="rotateWarning" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+     background:rgba(0,0,0,0.9); color:white; font-size:24px;
+     justify-content:center; align-items:center; text-align:center; z-index:50;">
+    TURN YOUR PHONE TO PLAY THE GAME!
+</div>
+<div id="topBar">
+  <div id="lapContainer">
+    Laps:
+    <input id="lapInput" type="number" value="3" min="3">
+  </div>
+  <a href="https://blackeagle8100.github.io/RacingBoard/" target="_blank" class="scoreboardButton">
+    SCOREBOARD!
+  </a>
+  <div id="hud">
+    <div class="playerRow">
+      <label for="nameP1">P1:</label>
+      <input type="text" id="nameP1" value="P1">
+      <span id="statsP1" class="stats"></span>
+    </div>
+
+    <div class="playerRow">
+      <label for="nameP2">P2:</label>
+      <input type="text" id="nameP2" value="P2">
+      <span id="statsP2" class="stats"></span>
+    </div>
+  </div>
+  <button class="scoreboardButton" id="newGameBtn1">NEW GAME</button>
+</div>
+<div id="gameWrapper">
+  <canvas id="game"></canvas>
+</div>
+    <div id= "minigameOverlay">
+    <div id="panelP1" class="minigamePanel">
+        <div>Player 1</div>
+        <canvas id="minigameCanvas1" width="300" height="150"></canvas>
+        <div id="minigameStatus1"></div>
+        <div class="boostHint" style="color:#ffcc00; font-size:14px; margin-top:5px; display:none;">
+          Press SPACE for BOOST!
+        </div>
+    </div>
+    <div id="panelP2" class="minigamePanel">
+        <div>Player 2</div>
+        <canvas id="minigameCanvas2" width="300" height="150"></canvas>
+        <div id="minigameStatus2"></div>
+        <div class="boostHint" style="color:#ffcc00; font-size:14px; margin-top:5px; display:none;">
+          Press N for BOOST!
+        </div>
+    </div>
+    </div>
+      <div id="overlay" style="display:none">
+      <span id="winnerText">WINNER</span>
+      <button class="scoreboardButton" id="newGameBtn">NEW GAME</button>
+    </div>
+  <div id="mobileControls">
+    <div id="stickP1" class="stick"><div class="knob"></div></div>
+    <div id="stickP2" class="stick"><div class="knob"></div></div>
+  </div>
+
+
+  <script type="module" src="main.js"></script>
+
+</body>
+  </html>

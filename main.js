@@ -7,19 +7,43 @@
     LVL2: ['LVL2'],
     LVL3: ['LVL3'],
     LVL4: ['LVL4_1', 'LVL4_2'],
-    LVL5: ['LVL5']
+    LVL5: ['LVL5_1', 'LVL5_2'],
+    LVL6: ['LVL6_1', 'LVL6_2']
   };
+
+  console.log("levels.LVL5 =", levels.LVL5);
+  let gameOver = false;
+  let currentTable = "LVL1";
+
+
+  const CONFIG = {
+    TILE_SIZE: 16,
+    SPEED: 400,
+    BASE_PLANK: 220,
+    MIN_PLANK: 160,
+    MAX_PLANK: 260,
+    MAX_ANGLE: 35,
+    BALANCE_DURATION: 3,
+    BALANCE_ZONE: 30,
+    GRAVITY: 420,
+    FRICTION: 0.98
+  };
+
+  let track = null;
+  let GLOBAL_PLANK_LENGTH = CONFIG.BASE_PLANK;
   let currentLevel = null;
   let currentSectionIndex = 0;
   let teleporting = false;
   let activeTrack = null;
   const levelCheckpointState = {};
+  const activeMinigames = { P1: null, P2: null };
   window.addEventListener("DOMContentLoaded", () => {
       document.getElementById('track1Btn').addEventListener('click', () => startLevel('LVL1'));
       document.getElementById('track2Btn').addEventListener('click', () => startLevel('LVL2'));
       document.getElementById('track3Btn').addEventListener('click', () => startLevel('LVL3'));
       document.getElementById('track4Btn').addEventListener('click', () => startLevel('LVL4'));
       document.getElementById('track5Btn').addEventListener('click', () => startLevel('LVL5'));
+      document.getElementById('track6Btn').addEventListener('click', () => startLevel('LVL6'));
   });
       // === Spelers ===
     const players = {
@@ -63,20 +87,8 @@
         finishTime: null
       }
     }
-    const CONFIG = {
-      TILE_SIZE: 16,
-      SPEED: 400,
-      BASE_PLANK: 220,
-      MIN_PLANK: 160,
-      MAX_PLANK: 260,
-      MAX_ANGLE: 35,
-      BALANCE_DURATION: 3,
-      BALANCE_ZONE: 30,
-      GRAVITY: 420,
-      FRICTION: 0.98
-  };
-  let track = null;
-  let GLOBAL_PLANK_LENGTH = CONFIG.BASE_PLANK;
+
+
   // later, waar je hem wilt aanpassen:
   GLOBAL_PLANK_LENGTH = Math.max(
     CONFIG.MIN_PLANK,
@@ -148,8 +160,7 @@
     // (optioneel debug)
     carSprites.P1.onload = () => console.log("P1 car loaded");
     carSprites.P2.onload = () => console.log("P2 car loaded");
-    let gameOver = false;
-    let currentTable = "LVL1";
+
   //--------------------
   //FUNCTIONSSSSSS
   //---------------------
@@ -552,17 +563,17 @@
     // owner: only here sets true
     players[pName].inMinigame = true;
     players[pName].minigameCooldown = true;
-
+    activeMinigames[pName] = mgType;
     // UI
     minigameOverlay.style.display = "flex";
 
     const callback = () => {
       // owner: only here sets false
       players[pName].inMinigame = false;
+
       players[pName].lastTile = null;
       players[pName].minigameCooldown = false;
 
-      activeMinigames[pName] = null;
       minigameOverlay.style.display = "none";
 
       const exit = findExitForLane(players[pName].lane);
@@ -653,7 +664,7 @@
       function anim() {
           if (!state.active) {
               panel.style.display = "none";
-              players[pName].inMinigame = false;
+
               window.removeEventListener("keydown", keyDown);
               window.removeEventListener("keyup", keyUp);
               if(callback) callback();
