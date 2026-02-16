@@ -672,68 +672,74 @@
         ctx.fill();
       }
       function anim() {
-          if (!state.active) {
-              panel.style.display = "none";
-
-              window.removeEventListener("keydown", keyDown);
-              window.removeEventListener("keyup", keyUp);
-              if(callback) callback();
-              return;
-          }
-          const now = performance.now();
-          const dt = Math.min(0.05, (now - state.lastTime)/1000);
-          state.lastTime = now;
-          ctx.clearRect(0,0,canvas.width,canvas.height);
-          // input toetsen: Z/S of pijltjes omhoog/omlaag
-          let input = 0;
-          if(keysLocal['z'] || keysLocal['arrowup']) input -= 1;
-          if(keysLocal['s'] || keysLocal['arrowdown']) input += 1;
-          input += sticks[pName].y; // joystick input
-          // physics
-          state.speed += gravity * Math.sin(state.angle);
-          state.speed = Math.max(-maxSpeed, Math.min(maxSpeed, state.speed));
-          const PUMP_STRENGTH = 3.2; // tweak 2.5 - 5.0
-          state.angle += state.speed * dt + input * PUMP_STRENGTH * dt;
-          const ballX = centerX + radius * Math.cos(state.angle);
-          const ballY = centerY + radius * Math.sin(state.angle);
-          // teken cirkelzones
-          drawZones();
-          // teken cirkel outline
-          ctx.strokeStyle = "#fff";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
-          ctx.stroke();
-          // teken bal
-          ctx.fillStyle = ball.color;
-          ctx.beginPath();
-          ctx.arc(ballX, ballY, ball.radius, 0, Math.PI*2);
-          ctx.fill();
-          // instructie in het midden
-          ctx.fillStyle = "white";
-          ctx.font = "bold 18px Arial";
-          ctx.textAlign = "center";
-          ctx.fillText("Press UP/DOWN", centerX, centerY + 5);
-          ctx.fillText("to PUMP!", centerX, centerY + 25);
-          // check succes: bal in top groene sector
-          const angleNormalized = (state.angle + 2*Math.PI) % (2*Math.PI);
-          if(angleNormalized <= Math.PI / 8 || angleNormalized >= 15*Math.PI/8) {
-              state.completed = true;
-              state.active = false;
-              players[pName].inMinigame = false;
-              panel.style.display = "none";
-              // teleport speler
-              const exit = findExitForLane(players[pName].lane);
-              if(exit) { players[pName].x = exit.x + 0.5; players[pName].y = exit.y + 0.5; }
-              window.removeEventListener("keydown", keyDown);
-              window.removeEventListener("keyup", keyUp);
-              if(callback) callback();
-              return;
-          }
-          requestAnimationFrame(anim);
-      }
-      requestAnimationFrame(anim);
+  if (!state.active) {
+    panel.style.display = "none";
+    window.removeEventListener("keydown", keyDown);
+    window.removeEventListener("keyup", keyUp);
+    if (callback) callback();
+    return;
   }
+
+  const now = performance.now();
+  const dt = Math.min(0.033, (now - state.lastTime) / 1000); // 0.033 = smoother
+  state.lastTime = now;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // input
+  let input = 0;
+  if (keysLocal["z"] || keysLocal["arrowup"]) input -= 1;
+  if (keysLocal["s"] || keysLocal["arrowdown"]) input += 1;
+  input += sticks[pName].y;
+
+  // ---- dt-based physics ----
+  const GRAVITY = 6.0;        // tweak 4.5 - 8.0
+  const MAX_SPEED = 10;       // clamp
+  const PUMP_STRENGTH = 3.2;  // tweak 2.5 - 5.0
+
+  state.speed += GRAVITY * Math.sin(state.angle) * dt;
+  state.speed = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, state.speed));
+
+  state.angle += (state.speed + input * PUMP_STRENGTH) * dt;
+
+  // draw
+  const ballX = centerX + radius * Math.cos(state.angle);
+  const ballY = centerY + radius * Math.sin(state.angle);
+
+  drawZones();
+
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = ball.color;
+  ctx.beginPath();
+  ctx.arc(ballX, ballY, ball.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "white";
+  ctx.font = "bold 18px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Press UP/DOWN", centerX, centerY + 5);
+  ctx.fillText("to PUMP!", centerX, centerY + 25);
+
+  // success check (jij had dit op 0 rad "rechts")
+  const angleNormalized = (state.angle + 2 * Math.PI) % (2 * Math.PI);
+  if (angleNormalized <= Math.PI / 8 || angleNormalized >= 15 * Math.PI / 8) {
+    state.completed = true;
+    state.active = false;
+    players[pName].inMinigame = false;
+    panel.style.display = "none";
+    window.removeEventListener("keydown", keyDown);
+    window.removeEventListener("keyup", keyUp);
+    if (callback) callback();
+    return;
+  }
+
+  requestAnimationFrame(anim);
+}
   //-----------------------------------------------------
   function startJumpMinigame(pName, callback) {
     const state = minigameState[pName];
