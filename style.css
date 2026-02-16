@@ -286,8 +286,6 @@ margin: 0 10px; /* beetje ruimte tussen lap counter en HUD */
 }
 
 #gameWrapper {
-display: none;
-
 position: relative;
 width: 100%;
 height: calc(100vh - 48px);
