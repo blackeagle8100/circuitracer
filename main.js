@@ -634,10 +634,20 @@
       const radius = Math.min(canvas.width, canvas.height) / 2 - 20;
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
-      state.angle = Math.PI; // start links
-      state.speed = 0;
-      const gravity = 0.5;
-      const maxSpeed = 10;
+      // ---- TUNABLES ----
+      const GRAVITY = 6.0;          // per seconde (probeer 4.5 - 8.0)
+      const MAX_SPEED = 10;         // rad/s-ish
+      const PUMP_STRENGTH = 3.2;    // 2.5 - 5.0
+      
+      // physics (nu wél dt-based)
+      state.speed += GRAVITY * Math.sin(state.angle) * dt;
+      state.speed = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, state.speed));
+      
+      // angle update
+      state.angle += (state.speed + input * PUMP_STRENGTH) * dt;
+     
+  
+
       const ball = { radius: 15, color: "yellow" };
       // input toetsen
       const keysLocal = {};
