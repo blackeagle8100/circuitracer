@@ -582,7 +582,7 @@ function startLoopingMinigame(pName, callback) {
   // ---- TUNABLES (dt-based) ----
   const GRAVITY = 8.0;        // 4.5 - 8.0
   const MAX_SPEED = 4.0;     // clamp
-  const PUMP_STRENGTH = 0.5;  // 2.5 - 5.0
+  const PUMP_STRENGTH = 1;  // 2.5 - 5.0
 
   const ball = { radius: 15, color: "yellow" };
 
