@@ -682,7 +682,8 @@
           // physics
           state.speed += gravity * Math.sin(state.angle);
           state.speed = Math.max(-maxSpeed, Math.min(maxSpeed, state.speed));
-          state.angle += state.speed * dt + input * 0.03;
+          const PUMP_STRENGTH = 3.2; // tweak 2.5 - 5.0
+          state.angle += state.speed * dt + input * PUMP_STRENGTH * dt;
           const ballX = centerX + radius * Math.cos(state.angle);
           const ballY = centerY + radius * Math.sin(state.angle);
           // teken cirkelzones
