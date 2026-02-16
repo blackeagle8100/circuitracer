@@ -1,6 +1,6 @@
 // main.js
   import { tracks } from './trackbuilder.js';
-  import { uploadScore, uploadEndScores } from './supabase.js';
+
   // dynamisch levels + secties
   export const levels = {
     LVL1: ['LVL1'],
