@@ -530,3 +530,70 @@ margin-top: 8px;
 opacity: 0.85;
 font-size: 12px;
 }
+
+ /* ==============================
+   FIX: SCROLL + LANDSCAPE MENU
+   ============================== */
+
+/* 1) Laat de pagina weer kunnen scrollen (minstens verticaal).
+   Als je echt bang bent dat de game zelf scrolt: we locken de gameWrapper apart. */
+html, body {
+  overflow-x: hidden;
+  overflow-y: auto;          /* was hidden */
+  height: 100%;
+}
+
+/* touch-action:none op body maakt op mobile ook scroll kapot */
+body {
+  touch-action: pan-y;       /* was none */
+}
+
+/* 2) Game zelf mag NIET scrollen (zodat swipen/joystick ok blijft) */
+#gameWrapper {
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+/* 3) TrackMenu overlay: maak hem zélf scrollbaar */
+#trackMenu{
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+}
+
+/* Zorg dat de content niet “vast” in het midden blijft hangen als het hoger is dan het scherm */
+#trackMenu > div{
+  align-items: stretch;
+}
+
+/* 4) Buttons: default ok, maar in landscape met lage hoogte: compacter */
+@media (max-width: 900px) and (orientation: landscape){
+  #trackMenu h1{
+    font-size: 22px;
+    margin: 8px 0 10px 0;
+  }
+
+  #trackMenu button{
+    min-height: 52px;        /* was 78px */
+    padding: 10px 10px;      /* kleiner */
+    font-size: 16px;
+    line-height: 1.05;
+  }
+
+  /* kleiner gap zodat alles past */
+  #trackMenu > div{
+    gap: 18px !important;    /* was 40 */
+  }
+  #trackMenu ul{
+    gap: 8px !important;     /* was 12 */
+  }
+}
+/* PATCHING OVER-RIDE (OPRUIMEN EN OK ZETTEN OOKJ VOOR LATER)*/
+/* Extra: ultralage hoogte toestellen (landscape iPhone SE etc.) */
+@media (max-width: 900px) and (max-height: 430px) and (orientation: landscape){
+  #trackMenu button{
+    min-height: 44px;
+    font-size: 15px;
+    padding: 8px 10px;
+  }
+}
