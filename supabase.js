@@ -2,7 +2,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const supabaseUrl = 'https://itmhwyamdcdcompixnrk.supabase.co';
-const supabaseKey = 'sb_publishable_lun6Mhjl_0P4vqQNaPGyKw_OKNwJ9cW';
+const supabaseKey = 'sb_publishableKEY';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // export functies zodat main.js ze kan importeren
