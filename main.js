@@ -148,7 +148,7 @@ const players = {
 
   },
   P2: {
-    lane:"2", x:0,y:0,color:"yellow",
+    lane:"2", x:0,y:0,color:"red",
     angle: 0,
     started:false, lap:0, lapStart:0,
     totalTime:0,
