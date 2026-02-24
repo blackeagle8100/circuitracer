@@ -1480,7 +1480,7 @@ function drawTrack() {
             ctx.fillStyle = (lane1Active || lane2Active) ? "green" : "purple";
             break;
           case "N": color = "black"; break;
-          case "Y": color = "yellow"; break;
+          case "Y": color = "red"; break;
           case "*": case "%": color = "white"; break;
           case "H": color = "cyan"; break;
           case "B": color = "#C4A484"; break;   // balance
