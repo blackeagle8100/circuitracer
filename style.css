@@ -1,6 +1,3 @@
-/* =========================================================
- J OUW BESTAANDE *CSS (ongewijzigd, zoals je stuurde)
- ========================================================= */
 body {
     background:#111;
     color:white;
@@ -14,9 +11,8 @@ html, body {
     margin: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden;
 }
-h2 { display: none !important; }
+#trackMenu h2 { display: none; }
 
 
 /* ===== TRACKMENU: center + gelijke knoppen ===== */
@@ -96,11 +92,11 @@ white-space: nowrap;
 }
 
 #overlay {
-position:fixed;
+
 top:0; left:0; right:0; bottom:0;
 background:rgba(0,0,0,0.85);
 color:white;
-font-size:48px;
+
 display:flex;
 flex-direction:column;
 justify-content:center;
@@ -109,19 +105,7 @@ z-index:30;
 gap:20px;
 }
 
-#mobileControls {
-position: fixed;
-bottom: 5px;
-left: 0;
-right: 0;
-height: 35%;
-pointer-events: auto;
-display: flex;
-justify-content: space-between;
-padding: 0 15px;
-box-sizing: border-box;
-z-index: 12;
-}
+
 
 .stick {
     position: relative;
@@ -185,48 +169,44 @@ margin: 0 10px; /* beetje ruimte tussen lap counter en HUD */
 
 
 .menuOverlay{
-  position:fixed; inset:0;
-  background:rgba(0,0,0,0.9);
-  color:#fff;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  gap:20px;
-  z-index:50;
-  padding:20px;
+    background:rgba(0,0,0,0.9);
+    color:#fff;
+
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:20px;
+    padding:20px;
 }
 
 .menuGrid{
-  width:min(900px, 92vw);
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:18px;
+    width:min(900px, 92vw);
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:18px;
 }
 
 .menuSection{
-  border:1px solid rgba(255,255,255,0.15);
-  border-radius:14px;
-  padding:16px;
-  background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:14px;
+    padding:16px;
+    background:rgba(255,255,255,0.05);
 }
 
 .menuSection h2{
-  margin:0 0 12px 0;
-  font-size:18px;
-  letter-spacing:1px;
-  opacity:0.9;
+    margin:0 0 12px 0;
+    font-size:18px;
+    letter-spacing:1px;
+    opacity:0.9;
 }
 
 .menuButtons{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
 }
 
-@media (max-width: 720px){
-  .menuGrid{ grid-template-columns: 1fr; }
-}
+
 
 
 
@@ -333,27 +313,17 @@ font-size: 18px;
     #mobileControls {
     display: block;
     position: fixed;
-    bottom: 0; /* Stick container onderaan */
+    bottom: 0;
     left: 0;
     right: 0;
-    height: 30%; /* of wat past */
-    pointer-events: none;
+    height: 40%;
+    pointer-events: auto;   /* ✅ FIX: was none */
     z-index: 20;
     }
-    #boostControls {
-    display: none; /* standaard verborgen */
-    }
-    .stick {
-        position: absolute;
-        bottom: 5%; /* afstand vanaf container bottom */
-        width: 120px;
-        height: 120px;
-        opacity: 0.6;
-        pointer-events: auto;
-    }
 
-    #stickP1 { left: 5%; }
-    #stickP2 { right: 5%; }
+    .stick {
+        pointer-events: auto;   /* ok */
+    }
 }
 @media (max-width: 600px) and (orientation: landscape) {
 
@@ -380,9 +350,9 @@ font-size: 18px;
 
 
 /* =========================================================
- S COREBOARD-PAGI*NA EXTRA CSS (past bij jouw look)
- (alles onder #sbPage zodat er zo weinig mogelijk botst)
- ========================================================= */
+ * S COREBOARD-PAGI*NA EXTRA CSS (past bij jouw look)
+ * (alles onder #sbPage zodat er zo weinig mogelijk botst)
+ * ========================================================= */
 #sbPage{
 width: 100%;
 height: calc(100vh - 48px);
@@ -528,162 +498,482 @@ margin-top: 8px;
 opacity: 0.85;
 font-size: 12px;
 }
-
- /* ==============================
-   FIX: SCROLL + LANDSCAPE MENU
-   ============================== */
-
-/* 1) Laat de pagina weer kunnen scrollen (minstens verticaal).
-   Als je echt bang bent dat de game zelf scrolt: we locken de gameWrapper apart. */
-html, body {
-  overflow-x: hidden;
-  overflow-y: auto;          /* was hidden */
-  height: 100%;
-}
-
-/* touch-action:none op body maakt op mobile ook scroll kapot */
-body {
-  touch-action: pan-y;       /* was none */
-}
-
-/* 2) Game zelf mag NIET scrollen (zodat swipen/joystick ok blijft) */
-#gameWrapper {
-  overscroll-behavior: contain;
-  touch-action: none;
-}
-
-/* 3) TrackMenu overlay: maak hem zélf scrollbaar */
-#trackMenu{
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 16px;
-}
-
-/* Zorg dat de content niet “vast” in het midden blijft hangen als het hoger is dan het scherm */
-#trackMenu > div{
-  align-items: stretch;
-}
-
-/* 4) Buttons: default ok, maar in landscape met lage hoogte: compacter */
-@media (max-width: 900px) and (orientation: landscape){
-  #trackMenu h1{
-    font-size: 22px;
-    margin: 8px 0 10px 0;
-  }
-
-  #trackMenu button{
-    min-height: 52px;        /* was 78px */
-    padding: 10px 10px;      /* kleiner */
-    font-size: 16px;
-    line-height: 1.05;
-  }
-
-  /* kleiner gap zodat alles past */
-  #trackMenu > div{
-    gap: 18px !important;    /* was 40 */
-  }
-  #trackMenu ul{
-    gap: 8px !important;     /* was 12 */
-  }
-}
-/* PATCHING OVER-RIDE (OPRUIMEN EN OK ZETTEN OOKJ VOOR LATER)*/
-/* Extra: ultralage hoogte toestellen (landscape iPhone SE etc.) */
-@media (max-width: 900px) and (max-height: 430px) and (orientation: landscape){
-  #trackMenu button{
-    min-height: 44px;
-    font-size: 15px;
-    padding: 8px 10px;
-  }
-}
+/*  */
 /* ==============================
-   WINNER OVERLAY: altijd passend
-   ============================== */
+ *   WINNER OVERLAY: altijd passend
+ *   ============================== */
 
 #overlay{
-  position: fixed;
-  inset: 0;
-  z-index: 30;
+position: fixed;
+inset: 0;
+z-index: 30;
 
-  display: none;                 /* jij zet hem op flex in JS */
-  align-items: center;
-  justify-content: center;
+display: none;                 /* jij zet hem op flex in JS */
+align-items: center;
+justify-content: center;
 
-  padding: 14px;
-  box-sizing: border-box;
-  background: rgba(0,0,0,0.85);
+padding: 14px;
+box-sizing: border-box;
+background: rgba(0,0,0,0.85);
 
-  /* geen scroll nodig */
-  overflow: hidden;
+/* geen scroll nodig */
+overflow: hidden;
 }
 
 /* Maak winnaar content een card die altijd in viewport past */
 #winnerText{
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
 
-  width: min(92vw, 760px);
-  max-height: 92vh;
+width: min(92vw, 760px);
+max-height: 92vh;
 
-  border: 2px solid rgba(255,255,255,0.25);
-  border-radius: 14px;
-  background: rgba(0,0,0,0.55);
-  padding: 14px;
-  gap: 10px;
+border: 2px solid rgba(255,255,255,0.25);
+border-radius: 14px;
+background: rgba(0,0,0,0.55);
+padding: 14px;
+gap: 10px;
 
-  box-sizing: border-box;
+box-sizing: border-box;
 
-  /* tekst schaalt mee */
-  font-size: clamp(16px, 2.6vw, 26px);
-  line-height: 1.15;
-  text-align: center;
+/* tekst schaalt mee */
+font-size: clamp(16px, 2.6vw, 26px);
+line-height: 1.15;
+text-align: center;
 }
 
 /* De grote titel binnen winnerText (jouw innerHTML eerste div) */
 #winnerText > div:first-child{
-  font-size: clamp(22px, 6vw, 54px);
-  font-weight: 900;
-  margin-bottom: 6px;
+font-size: clamp(22px, 6vw, 54px);
+font-weight: 900;
+margin-bottom: 6px;
 }
 
 /* Zet knoppen mooi naast elkaar (NEW GAME + SCOREBOARD) */
 #overlay .overlayActions{
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;           /* geen wrap = geen scroll */
+display: flex;
+gap: 10px;
+width: 100%;
+justify-content: center;
+align-items: center;
+flex-wrap: nowrap;           /* geen wrap = geen scroll */
 }
 
 /* Maak overlay knoppen compacter en consistent */
 #overlay .scoreboardButton{
-  font-size: clamp(14px, 3.4vw, 18px);
-  padding: 10px 12px;
-  border-radius: 10px;
-  white-space: nowrap;
+font-size: clamp(14px, 3.4vw, 18px);
+padding: 10px 12px;
+border-radius: 10px;
+white-space: nowrap;
 
-  /* zorg dat 2 knoppen naast elkaar passen */
-  flex: 1 1 0;
-  max-width: 260px;
-  text-align: center;
+/* zorg dat 2 knoppen naast elkaar passen */
+flex: 1 1 0;
+max-width: 260px;
+text-align: center;
 }
 
 /* Landscape: nog compacter zodat het 100% past */
 @media (max-width: 900px) and (orientation: landscape){
-  #winnerText{
+    #winnerText{
     width: min(96vw, 900px);
     padding: 10px;
     gap: 8px;
-  }
-  #winnerText > div:first-child{
+    }
+    #winnerText > div:first-child{
     font-size: clamp(20px, 5vw, 44px);
     margin-bottom: 2px;
-  }
-  #overlay .scoreboardButton{
+    }
+    #overlay .scoreboardButton{
     padding: 8px 10px;
     max-width: 240px;
-  }
+    }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+ *  STARTMENU (CLEAN + MOBILE OK)
+ *  ========================= */
+
+/* Startmenu bovenaan, niet center, en mag scrollen als nodig */
+
+
+/* Titel iets compacter */
+#startMenu > h1{
+margin: 0 !important;
+font-size: 28px;
+line-height: 1;
+}
+
+/* License card: 2 kolommen op desktop, 1 kolom op mobile */
+#licenseCard{
+width: min(980px, 96vw);
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 14px;
+
+/* ✅ vaste "ruimte in viewport" zodat de card niet instort */
+height: calc(100dvh - 140px);
+min-height: 0;                               /* ✅ essentieel in grid */
+align-items: stretch;
+}
+
+/* Beide kolommen mogen vullen */
+#licenseCard > .menuSection{
+height: 100%;
+min-height: 0;                               /* ✅ essentieel */
+overflow: hidden;
+box-sizing: border-box;
+}
+
+/* Linkerkolom: inhoud moet altijd zichtbaar zijn => scroll IN de kolom */
+#licenseCard > .menuSection:first-child{
+overflow-y: auto;
+-webkit-overflow-scrolling: touch;
+}
+
+/* Rechterkolom driver: center */
+#driverSection{
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+overflow: hidden;
+}
+
+/* Driver image */
+#driverImg{
+width: 100%;
+max-width: 360px;
+max-height: 40dvh;
+height: auto;
+object-fit: contain;
+display: block;
+
+image-rendering: pixelated;
+border-radius: 14px;
+border: 2px solid rgba(255,255,255,0.2);
+background: rgba(0,0,0,0.35);
+padding: 10px;
+}
+
+/* Buttons */
+#startMenuButtons{
+width: min(980px, 96vw);
+display: flex;
+justify-content: center;
+gap: 12px;
+}
+
+/* ✅ Mobile: 1 kolom (alles onder elkaar) zodat links nooit kan "instorten" */
+@media (max-width: 900px){
+    #licenseCard{
+    height: auto;                               /* card mag mee groeien */
+    max-height: calc(100dvh - 140px);
+    }
+
+    #licenseCard > .menuSection{
+    height: auto;
+    }
+
+    #licenseCard > .menuSection:first-child{
+    max-height: 40dvh;                          /* rijbewijs blok scrollt */
+    }
+
+    #driverImg{
+    max-height: 32dvh;
+    }
+}
+
+/* Startmenu: override .menuOverlay centering echt hard */
+#startMenu.menuOverlay{
+flex-direction: column !important;
+justify-content: flex-start !important;
+align-items: center !important;
+}
+
+/* rechterkolom driver center */
+#driverSection{
+display: flex;
+justify-content: center;
+align-items: center;
+min-height: 0;
+}
+
+
+
+/* Buttons onderaan altijd zichtbaar */
+#startMenuButtons{
+width: min(980px, 96vw);
+display: flex;
+justify-content: center;
+gap: 12px;
+padding-bottom: 10px;
+}
+
+/* Mobile: 1 kolom zodat niets “instort” */
+@media (max-width: 900px){
+    #licenseCard{
+
+    max-height: none;               /* card mag groeien */
+    }
+
+    #driverImg{
+    max-height: 28vh;
+    }
+}
+
+
+
+
+
+/* =========================
+ *  STARTMENU (ONE TRUE VERSION)
+ *  ========================= */
+
+/* laat JS display regelen (NIET in CSS!) */
+#startMenu{
+justify-content: flex-start !important;
+align-items: center !important;
+padding: 12px !important;
+gap: 12px !important;
+overflow-y: auto !important;
+-webkit-overflow-scrolling: touch;
+}
+
+/* titel */
+#startMenu > h1{
+margin: 0 !important;
+font-size: 28px;
+line-height: 1;
+}
+
+/* card */
+#licenseCard{
+width: min(980px, 96vw);
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 14px;
+
+/* belangrijkste: laat grid children kunnen krimpen */
+min-height: 0;
+align-items: stretch;
+
+/* stabiel op mobiel, maar geen fullscreen blokker */
+max-height: 65vh;
+overflow: hidden;
+}
+
+/* beide kolommen */
+#licenseCard > .menuSection{
+min-height: 0;           /* 🔑 cruciaal */
+overflow: hidden;
+}
+
+/* linkerkolom scrollbaar */
+#licenseCard > .menuSection:first-child{
+overflow-y: auto;
+-webkit-overflow-scrolling: touch;
+}
+
+/* driver kolom */
+#driverSection{
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+min-height: 0;
+overflow: hidden;
+}
+
+#driverImg{
+width: 100%;
+max-width: 360px;
+max-height: 32vh;
+height: auto;
+object-fit: contain;
+display: block;
+
+image-rendering: pixelated;
+border-radius: 14px;
+border: 2px solid rgba(255,255,255,0.2);
+background: rgba(0,0,0,0.35);
+padding: 10px;
+}
+
+/* knoppen */
+#startMenuButtons{
+width: min(980px, 96vw);
+display: flex;
+justify-content: center;
+gap: 12px;
+padding-bottom: 10px;
+}
+
+/* mobile: 1 kolom */
+@media (max-width: 900px){
+    #licenseCard{
+
+    max-height: none;
+    }
+
+    /* laat rijbewijs blok scrollen, driver zichtbaar */
+    #licenseCard > .menuSection:first-child{
+    max-height: 42vh;
+    }
+
+    #driverImg{
+    max-height: 28vh;
+    }
+}
+
+
+#carSelectMenu{ pointer-events: auto; }
+
+
+
+/* ========= OVERLAYS: 1 systeem ========= */
+.menuOverlay,
+#trackMenu,
+#rotateWarning,
+#overlay,
+#carSelectMenu,
+#statsMenu,
+#startMenu{
+position: fixed;
+inset: 0;
+}
+
+/* overlays zijn standaard UIT, JS zet ze aan */
+#startMenu,
+#statsMenu,
+#carSelectMenu,
+#trackMenu,
+#overlay{
+display: none;
+}
+
+/* z-index ladder (belangrijk!) */
+#startMenu{ z-index: 50; }
+#statsMenu{ z-index: 60; }
+#carSelectMenu{ z-index: 70; }
+#trackMenu{ z-index: 80; }
+#overlay{ z-index: 90; }
+#rotateWarning{ z-index: 10000; }
+
+
+
+#mobileControls {
+position: fixed;
+bottom: 0;
+left: 0;
+right: 0;
+height: 140px;   /* vaste hoogte */
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 0 20px;
+z-index: 20;
+}
+
+
+
+@media (max-width: 900px) and (orientation: landscape){
+    #winnerText{
+    width: 96vw;
+    max-height: 86vh;      /* iets kleiner */
+    padding: 10px;
+    gap: 6px;
+    font-size: clamp(12px, 2.2vw, 16px); /* kleiner body tekst */
+    }
+
+    /* "SBE Wins!" regel (jouw grote titel) */
+    #winnerText > div:first-child{
+    font-size: clamp(18px, 4.2vw, 28px); /* ✅ veel kleiner dan 44px */
+    margin: 6px 0 2px 0;
+    }
+}
+
+
+/* Stats menu volledig centreren */
+#statsMenu{
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+}
+
+/* container */
+#statsList{
+width: min(500px, 90vw);
+text-align: center;
+}
+
+/* blok per level */
+.statBlock{
+    margin: 20px 0;
+}
+
+/* titel geel */
+.statLvlTitle{
+    color: #ffff66;
+    font-weight: 900;
+    font-size: 22px;
+    margin-bottom: 10px;
+}
+
+/* lijnen onder elkaar en gecentreerd */
+.statLine{
+    display: block;
+    font-size: 15px;
+    margin: 4px 0;
+}
+
+/* ASCII lijn */
+.statAsciiSep{
+    margin-top: 10px;
+    opacity: 0.7;
+    font-family: monospace;
+}
+
+
+/* ===== TRACK MENU SCROLL FIX ===== */
+
+#trackMenu{
+position: fixed;
+inset: 0;
+
+display: none;           /* JS zet hem op flex */
+flex-direction: column;
+align-items: center;
+justify-content: flex-start;   /* 🔥 niet meer center */
+
+padding: 20px;
+box-sizing: border-box;
+
+overflow-y: auto;              /* 🔥 SCROLL */
+-webkit-overflow-scrolling: touch;
+}
+
+/* content blok centreren */
+#trackMenu > div{
+margin-top: 40px;              /* ruimte bovenaan */
+}
