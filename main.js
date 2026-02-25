@@ -472,7 +472,7 @@ function saveBestLapIfBetter(lapTime) {
 
 
 function stickForP1(){
-  return sticks.P1;
+  return getCombinedStick();
 }
 // Nieuw: aparte functie voor eerste starttiles
 function setPlayersToStart() {
