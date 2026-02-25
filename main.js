@@ -862,10 +862,8 @@ function startBalanceMinigame(pName, callback){
   }
   requestAnimationFrame(anim);
 }
-
-
 // ----------------------------------------
-// animate BALANCE minigame (FINAL / WORKING)
+// animate BALANCE minigame
 function animateBalanceMinigame(pName) {
   const canvasMG = mgCanvases[pName];
   const ctxMG = mgCtxs[pName];
@@ -874,67 +872,48 @@ function animateBalanceMinigame(pName) {
   const now = performance.now();
   const dt = Math.min(0.05, (now - mg.lastTime) / 1000);
   mg.lastTime = now;
-
   ctxMG.clearRect(0, 0, canvasMG.width, canvasMG.height);
-
-  // plank angle in radians
   const angleRad = mg.plankAngle * Math.PI / 180;
-
-  // === INPUT ===
   let input = 0;
   const keyset = minigameKeys[pName];
   if (keyset.left.some(k => keys[k])) input -= 1;
   if (keyset.right.some(k => keys[k])) input += 1;
   input += stickForP1().x;
-
-  // update plank angle
   mg.plankAngle += input * 120 * dt;
   mg.plankAngle = Math.max(-CONFIG.MAX_ANGLE, Math.min(CONFIG.MAX_ANGLE, mg.plankAngle));
-
-  // === PHYSICS ===
   const halfPlank = state.plankLength / 2;
-
   const gravityScale = Math.min(1.3, Math.max(0.7, state.plankLength / CONFIG.BASE_PLANK));
   mg.ballSpeed += CONFIG.GRAVITY * gravityScale * Math.sin(angleRad) * dt;
   mg.ballSpeed *= CONFIG.FRICTION;
   mg.ballX += mg.ballSpeed * dt;
-
   // clamp ball
   if (mg.ballX < -halfPlank) { mg.ballX = -halfPlank; mg.ballSpeed = 0; }
   if (mg.ballX >  halfPlank) { mg.ballX =  halfPlank; mg.ballSpeed = 0; }
-
   // === BALANCE CHECK ===
   const inZone = Math.abs(mg.ballX) < CONFIG.BALANCE_ZONE;
   mg.balanceTime = inZone ? (mg.balanceTime + dt) : 0;
-
   const timeLeft = Math.max(0, CONFIG.BALANCE_DURATION - mg.balanceTime);
-
   if (mg.balanceTime >= CONFIG.BALANCE_DURATION) {
     mg.completed = true;
     mg.active = false;
     return;
   }
-
   // === DRAW PLANK ===
   ctxMG.save();
   ctxMG.translate(canvasMG.width / 2, canvasMG.height / 2);
   ctxMG.rotate(angleRad);
-
   ctxMG.strokeStyle = "#fff";
   ctxMG.lineWidth = 6;
   ctxMG.beginPath();
   ctxMG.moveTo(-halfPlank, 0);
   ctxMG.lineTo(halfPlank, 0);
   ctxMG.stroke();
-
   // ball
   ctxMG.fillStyle = inZone ? "#00ff00" : "#ff8800";
   ctxMG.beginPath();
   ctxMG.arc(mg.ballX, -14, 10, 0, Math.PI * 2);
   ctxMG.fill();
-
   ctxMG.restore();
-
   // countdown
   ctxMG.fillStyle = "#fff";
   ctxMG.font = `${Math.floor(canvasMG.height / 6)}px monospace`;
@@ -942,11 +921,6 @@ function animateBalanceMinigame(pName) {
   ctxMG.textBaseline = "top";
   ctxMG.fillText(timeLeft.toFixed(1) + "s", canvasMG.width / 2, 10);
 }
-
-
-
-
-
 //-----------------------------------------------------
 function startLoopingMinigame(pName, callback) {
   const mg = minigameState[pName];
@@ -969,16 +943,13 @@ function startLoopingMinigame(pName, callback) {
   const GRAVITY = 8.0;        // 4.5 - 8.0
   const MAX_SPEED = 4.0;     // clamp
   const PUMP_STRENGTH = 1;  // 2.5 - 5.0
-
   const ball = { radius: 15, color: "yellow" };
-
   // lokale input listeners (zodat minigame niet je globale keys stuk maakt)
   const keysLocal = {};
   function keyDown(e){ keysLocal[e.key.toLowerCase()] = true; }
   function keyUp(e){ keysLocal[e.key.toLowerCase()] = false; }
   window.addEventListener("keydown", keyDown);
   window.addEventListener("keyup", keyUp);
-
   function drawZones() {
     // boven groen
     ctxMG.fillStyle = "rgba(0,255,0,0.3)";
@@ -987,7 +958,6 @@ function startLoopingMinigame(pName, callback) {
     ctxMG.arc(centerX, centerY, radius, Math.PI, 0, false);
     ctxMG.closePath();
     ctxMG.fill();
-
     // onder rood
     ctxMG.fillStyle = "rgba(255,0,0,0.3)";
     ctxMG.beginPath();
@@ -996,58 +966,45 @@ function startLoopingMinigame(pName, callback) {
     ctxMG.closePath();
     ctxMG.fill();
   }
-
   function cleanupAndExit() {
     panel.style.display = "none";
     window.removeEventListener("keydown", keyDown);
     window.removeEventListener("keyup", keyUp);
     if (callback) callback(); // callback teleporteert + sluit overlay bij jou
   }
-
   function anim() {
     if (!mg.active) return cleanupAndExit();
-
     const now = performance.now();
     const dt = Math.min(0.033, (now - mg.lastTime) / 1000);
     mg.lastTime = now;
-
     ctxMG.clearRect(0, 0, canvasMG.width, canvasMG.height);
-
     // input: up/down + joystick y
     let input = 0;
     if (keysLocal["z"] || keysLocal["arrowup"]) input -= 1;
     if (keysLocal["s"] || keysLocal["arrowdown"]) input += 1;
     input += stickForP1().y;
-
     // dt-based physics
     mg.speed += GRAVITY * Math.sin(mg.angle) * dt;
     mg.speed = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, mg.speed));
-
     mg.angle += (mg.speed + input * PUMP_STRENGTH) * dt;
-
     // draw
     const ballX = centerX + radius * Math.cos(mg.angle);
     const ballY = centerY + radius * Math.sin(mg.angle);
-
     drawZones();
-
     ctxMG.strokeStyle = "#fff";
     ctxMG.lineWidth = 3;
     ctxMG.beginPath();
     ctxMG.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctxMG.stroke();
-
     ctxMG.fillStyle = ball.color;
     ctxMG.beginPath();
     ctxMG.arc(ballX, ballY, ball.radius, 0, Math.PI * 2);
     ctxMG.fill();
-
     ctxMG.fillStyle = "white";
     ctxMG.font = "bold 18px Arial";
     ctxMG.textAlign = "center";
     ctxMG.fillText("Press UP/DOWN", centerX, centerY + 5);
     ctxMG.fillText("to PUMP!", centerX, centerY + 25);
-
     // ✅ success: top zone (12 o'clock) i.p.v. "rechts"
     const a = (mg.angle + 2 * Math.PI) % (2 * Math.PI);
     const TOP = 3 * Math.PI / 2;
@@ -1058,10 +1015,8 @@ function startLoopingMinigame(pName, callback) {
       // laat callback teleport doen
       return cleanupAndExit();
     }
-
     requestAnimationFrame(anim);
   }
-
   requestAnimationFrame(anim);
 }
 //-----------------------------------------------------
@@ -1089,20 +1044,38 @@ function startJumpMinigame(pName, callback) {
     const redWidth = barWidth * 0.4;
     const greenWidth = barWidth * 0.2;
     return {
-      leftRed:  { x: barX,                     w: redWidth },
-      green:    { x: barX + redWidth,          w: greenWidth },
-      rightRed: { x: barX + redWidth + greenWidth, w: redWidth }
+      leftRed:  { x: barX,                          w: redWidth },
+      green:    { x: barX + redWidth,               w: greenWidth },
+      rightRed: { x: barX + redWidth + greenWidth,  w: redWidth }
     };
   })();
 
-  const arrow = { x: barX, w: 10, speed: canvas.width * 0.6, dir: 1 };
+  const BASE_SPEED = canvas.width * 0.6;
+  const arrow = { x: barX, w: 10, speed: BASE_SPEED, dir: 1 };
 
   const JUMP_THRESHOLD = -0.35;
+
   let prevStickY = 0;
   let prevKeyDown = false;
 
+  // korte lock na crash zodat je niet instant opnieuw triggert
+  let crashLockUntil = 0;
+
   const isJumpKeyDown = () =>
   (keys["z"] || keys["arrowup"] || keys["i"] || keys["8"]);
+
+  function resetAttempt(now, s, keyDown) {
+    // pijl terug naar start + blijft bewegen
+    arrow.x = barX;
+    arrow.dir = 1;
+    arrow.speed = BASE_SPEED;
+
+    // verplicht "release" (stick terug omhoog / knop loslaten)
+    prevStickY = s.y;       // snapshot huidige positie
+    prevKeyDown = keyDown;  // snapshot huidige key state
+
+    crashLockUntil = now + 250;
+  }
 
   function endMinigame(success) {
     mg.active = false;
@@ -1118,35 +1091,46 @@ function startJumpMinigame(pName, callback) {
     const dt = Math.min(0.03, (now - mg.lastTime) / 1000);
     mg.lastTime = now;
 
-    // move arrow
+    // arrow move: ALTIJD
     arrow.x += arrow.speed * arrow.dir * dt;
     if (arrow.x <= barX) arrow.dir = 1;
     if (arrow.x + arrow.w >= barX + barWidth) arrow.dir = -1;
 
-    // edge detect input (joystick of key)
     const s = stickForP1();
     const keyDown = isJumpKeyDown();
-    const joystickEdge = prevStickY >= JUMP_THRESHOLD && s.y < JUMP_THRESHOLD;
-    const keyEdge = !prevKeyDown && keyDown;
+
+    const locked = now < crashLockUntil;
+
+    if (!locked) {
+      const joystickEdge = prevStickY >= JUMP_THRESHOLD && s.y < JUMP_THRESHOLD;
+      const keyEdge = !prevKeyDown && keyDown;
+
+      if (joystickEdge || keyEdge) {
+        const left = arrow.x;
+        const right = arrow.x + arrow.w;
+
+        const inLeftRed  = right <= zones.leftRed.x + zones.leftRed.w;
+        const inRightRed = left  >= zones.rightRed.x;
+        const crash = inLeftRed || inRightRed;
+
+        const perfect =
+        left >= zones.green.x &&
+        right <= zones.green.x + zones.green.w;
+
+        if (crash) {
+          // ❌ MISS -> nieuwe poging (minigame blijft open)
+          resetAttempt(now, s, keyDown);
+        } else {
+          // ✅ success (of gebruik perfect als enkel groen telt)
+          endMinigame(true); // of: endMinigame(perfect);
+          return;
+        }
+      }
+    }
+
+    // ✅ SUPER BELANGRIJK: edge geheugen altijd updaten, anders voelt het "vast"
     prevStickY = s.y;
     prevKeyDown = keyDown;
-
-    if (joystickEdge || keyEdge) {
-      const left = arrow.x;
-      const right = arrow.x + arrow.w;
-
-      const crash =
-      right <= zones.leftRed.x + zones.leftRed.w ||
-      left  >= zones.rightRed.x;
-
-      const perfect =
-      left >= zones.green.x &&
-      right <= zones.green.x + zones.green.w;
-
-      // success bij perfect of barely (zoals vroeger)
-      endMinigame(perfect);
-      return;
-    }
 
     // DRAW
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1174,6 +1158,7 @@ function startJumpMinigame(pName, callback) {
 
   requestAnimationFrame(anim);
 }
+//--------------------------------------------
 function positionMinigamePanel(pName){
   // ✅ enkel P1 minigame tonen
   if (pName !== "P1") return;
@@ -1610,5 +1595,4 @@ lapInput.addEventListener("change", () => {
   lapInput.value = value;
   localStorage.setItem("circuitracer_laps", value);
 });
-
 
