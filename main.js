@@ -1,7 +1,5 @@
 // main.js
 import { tracks } from './trackbuilder.js';
-
-// dynamisch levels + secties
 export const levels = {
   LVL1: ['LVL1'],
   LVL2: ['LVL2'],
@@ -11,61 +9,20 @@ export const levels = {
   LVL6: ['LVL6_1', 'LVL6_2'],
   LVL7: ['LVL7'],
 };
-const ghostPlayback = {
-  active: false,
-  samples: null,
-  duration: 0,
-  clock: 0,
-  paused: false,
-  gates: [],
-  gateIndices: [],
-  resumeRequested: false,
-  resumeDelayFrames: 0,
-  resumeNudge: 0,
-  resumeTargetTime: null,
-  returnToStartT: null,
-  returningToStart: false,
-  segmentCursor: 0,
-  skipGateOnce: false,
-  segmentReady: false,
-  waitingForPlayerTeleport: false,
-  hidden: false,
-  hardHideFrames: 0,
-  poseLock: false,
-  justTeleported: false
-
-};
+let ghostPlayback = createGhostPlaybackState();
+let ghostRecord = createGhostRecordState();
 const GHOST_HZ = 30;
 const GHOST_MIN_DIST = 0.02;
-
-const ghostRecord = {
-  active: false,
-  samples: [],
-  gates: [],
-  gateIndices: [],
-  lastT: 0,
-  lastX: null,
-  returnToStartT: null,
-  lastY: null
-};
-
-// ===== Car select overlay open/close =====
 const carSelectMenu = document.getElementById("carSelectMenu");
 const btnChooseCar  = document.getElementById("btnChooseCar");
 const btnCarBack    = document.getElementById("btnCarBack");
 const btnResetStats = document.getElementById("btnResetStats");
-
 btnChooseCar?.addEventListener("click", () => {
   carSelectMenu.style.display = "flex";
 });
-
 btnCarBack?.addEventListener("click", () => {
   carSelectMenu.style.display = "none";
 });
-
-// =====================
-// START / STATS MENU LOGIC
-// =====================
 const ui = {
   startMenu: document.getElementById("startMenu"),
   statsMenu: document.getElementById("statsMenu"),
@@ -79,19 +36,12 @@ const ui = {
   btnStatsBack: document.getElementById("btnStatsBack"),
   statsList: document.getElementById("statsList")
 };
-
 const SETTINGS_KEYS = {
   nameP1: "circuitracer_name_p1",
   genderP1: "circuitracer_gender_p1",
-  carP1: "circuitracer_car_p1"   // "1".."6"
+  carP1: "circuitracer_car_p1"
 };
-
-
-
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-const nowSec = () => performance.now() / 1000;
-const tileKey = (x, y) => `${x},${y}`;
-
 const CONFIG = {
   TILE_SIZE: 16,
   SPEED: 400,
@@ -104,21 +54,17 @@ const CONFIG = {
   GRAVITY: 420,
   FRICTION: 0.98
 };
-
 const state = {
   gameOver: false,
   currentTable: "LVL1",
   track: null,
   activeTrack: null,
   currentLevel: null,
-  currentSectionIndex: 0,
   teleporting: false,
   levelCheckpointState: {},
   plankLength: CONFIG.BASE_PLANK
 
 };
-
-
 const dom = {
   trackMenu: document.getElementById("trackMenu"),
   overlay: document.getElementById("overlay"),
@@ -128,126 +74,70 @@ const dom = {
   lapInput: document.getElementById("lapInput"),
   statsP1: document.getElementById("statsP1"),
   statsP2: document.getElementById("statsP2"),
-
   rotateWarning: document.getElementById("rotateWarning"),
   gameWrapper: document.getElementById("gameWrapper"),
   mobileControls: document.getElementById("mobileControls"),
-
   minigameOverlay: document.getElementById("minigameOverlay"),
   panelP1: document.getElementById("panelP1"),
-  panelP2: document.getElementById("panelP2"),
-
-  mgCanvasP1: document.getElementById("minigameCanvas1"),
-  mgCanvasP2: document.getElementById("minigameCanvas2"),
-
   newGameBtn: document.getElementById("newGameBtn"),
   newGameBtn1: document.getElementById("newGameBtn1"),
 
 };
-if (dom.panelP2) dom.panelP2.style.display = "none";
-
-const activeMinigames = { P1: null, P2: null };
 window.addEventListener("DOMContentLoaded", () => {
-  document.getElementById('track1Btn').addEventListener('click', () => startLevel('LVL1'));
-  document.getElementById('track2Btn').addEventListener('click', () => startLevel('LVL2'));
-  document.getElementById('track3Btn').addEventListener('click', () => startLevel('LVL3'));
-  document.getElementById('track4Btn').addEventListener('click', () => startLevel('LVL4'));
-  document.getElementById('track5Btn').addEventListener('click', () => startLevel('LVL5'));
-  document.getElementById('track6Btn').addEventListener('click', () => startLevel('LVL6'));
-  document.getElementById('track7Btn').addEventListener('click', () => startLevel('LVL7'));
-});
+  Object.keys(levels).forEach((lvl, index) => {
+    document
+    .getElementById(`track${index + 1}Btn`)
+    ?.addEventListener("click", () => startLevel(lvl));
+  });
 
-
-window.addEventListener("DOMContentLoaded", () => {
   initStartScreen();
 });
 // === Spelers ===
 const players = {
   P1: {
-    lane:"1", x:0,y:0,color:"cyan",
+    lane:"1",
+    x:0, y:0,
     angle: 0,
     keys:{
-      z:[0,-1], s:[0,1], q:[-1,0], d:[1,0], // AZERTY
-      i:[0,-1], k:[0,1], j:[-1,0], l:[1,0],       // letters
-      "8":[0,-1], "5":[0,1], "4":[-1,0], "6":[1,0], // NUMPAD (NumLock)
-      arrowup:[0,-1], arrowdown:[0,1],           // pijltjes
+      z:[0,-1], s:[0,1], q:[-1,0], d:[1,0],
+      i:[0,-1], k:[0,1], j:[-1,0], l:[1,0],
+      "8":[0,-1], "5":[0,1], "4":[-1,0], "6":[1,0],
+      arrowup:[0,-1], arrowdown:[0,1],
       arrowleft:[-1,0], arrowright:[1,0]
     },
-    started:false, lap:0, lapStart:0,
-    totalTime:0, bestLap:null,
+    started:false,
+    lap:0,
+    lapStart:0,
+    bestLap:null,
     lastTile:null,
-    onStartTile: false,
-    canTriggerCheckpoints: false,
+    onStartTile:false,
+    canTriggerCheckpoints:false,
     inMinigame:false,
-    lastCPY : null,
-    minigameCooldown: false,
-    justExitedMinigame: false,
-    finishTime: null,
-    lapTimes: [],
-    runStart: null,
-    segmentStart: null
+    minigameCooldown:false,
+    finishTime:null,
+    lapTimes:[],
+    runStart:null
   },
   P2: {
-    lane:"2", x:0,y:0,color:"red",
-    angle: 0,
-    started:false, lap:0, lapStart:0,
-    totalTime:0,
-    bestLap:null,
-    keys: {},
-    lastTile:null,
-    onStartTile: false,
-    canTriggerCheckpoints: false,
-    inMinigame:false,
-    lastCPY : null,
-    minigameCooldown: false,
-    justExitedMinigame: false,
-    finishTime: null,
-    lapTimes: [],
-    runStart: null,
-    segmentStart: null
+    lane:"2",
+    x:0,
+    y:0,
+    angle:0
   }
-}
-
-
-// later, waar je hem wilt aanpassen:
-state.plankLength = clamp(state.plankLength, CONFIG.MIN_PLANK, CONFIG.MAX_PLANK);
-const boosts = { P1: false, P2: false };
-const MINIGAME_MAPPING = { "B": "balance", "L": "looping", "J": "jump" };
-
-// KEYMAPPING
-const minigameKeys = {
-  P1: { left: ["q","arrowleft"], right: ["d","arrowright"] },
-  P2: { left: ["j","4"], right: ["l","6"] }
 };
-
-
+state.plankLength = clamp(state.plankLength, CONFIG.MIN_PLANK, CONFIG.MAX_PLANK);
+const MINIGAME_MAPPING = { "B": "balance", "L": "looping", "J": "jump" };
+const minigameKeys = {
+  P1: { left: ["q","arrowleft"], right: ["d","arrowright"] }
+};
 const mgCanvases = {
-  P1: document.getElementById("minigameCanvas1"),
-  P2: document.getElementById("minigameCanvas2")
+  P1: document.getElementById("minigameCanvas1")
 };
 const mgCtxs = {
-  P1: mgCanvases.P1.getContext("2d"),
-  P2: mgCanvases.P2.getContext("2d")
+  P1: mgCanvases.P1.getContext("2d")
 };
-const mgStatus = {
-  P1: document.getElementById("minigameStatus1"),
-  P2: document.getElementById("minigameStatus2")
-};
-// Track minigame state per speler
 const minigameState = {
   P1: {
-    active:false,
-    type:null,
-    plankAngle:0,
-    ballX:0,
-    ballSpeed:0,
-    balanceTime:0,
-    angle:0,
-    speed:0,
-    completed:false,
-    lastTime:0
-  },
-  P2: {
     active:false,
     type:null,
     plankAngle:0,
@@ -262,30 +152,78 @@ const minigameState = {
 };
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-dom.newGameBtn1.addEventListener("click", () => {
-  location.reload();
+[dom.newGameBtn, dom.newGameBtn1].forEach(btn => {
+  btn?.addEventListener("click", () => location.reload());
 });
-dom.newGameBtn.addEventListener("click", () => {
-  location.reload();
-});
-// === CAR SPRITES ===
 const carSprites = {
   P1: new Image(),
   P2: new Image()
 };
 carSprites.P1.src = "icons/1.png";
 carSprites.P2.src = "icons/2.png";
-// (optioneel debug)
-carSprites.P1.onload = () => console.log("P1 car loaded");
-carSprites.P2.onload = () => console.log("P2 car loaded");
-
 //--------------------
 //FUNCTIONSSSSSS
 //---------------------
 
+
+
+
+function resetPlayerForStart(player, x, y, extra = {}) {
+  Object.assign(player, {
+    x,
+    y,
+    angle: Math.PI / 2,
+    ...extra
+  });
+}
+
+function resetGhostPlayback(overrides = {}) {
+  Object.assign(ghostPlayback, createGhostPlaybackState(), overrides);
+}
+
+function resetGhostRecord(overrides = {}) {
+  Object.assign(ghostRecord, createGhostRecordState(), overrides);
+}
+
+function createGhostPlaybackState() {
+  return {
+    active: false,
+    samples: null,
+    duration: 0,
+    clock: 0,
+    paused: false,
+    gates: [],
+    gateIndices: [],
+    resumeRequested: false,
+    resumeDelayFrames: 0,
+    resumeNudge: 0,
+    resumeTargetTime: null,
+    returnToStartT: null,
+    returningToStart: false,
+    segmentCursor: 0,
+    skipGateOnce: false,
+    segmentReady: false,
+    waitingForPlayerTeleport: false,
+    hidden: false,
+    hardHideFrames: 0,
+    poseLock: false,
+    justTeleported: false
+  };
+}
+function createGhostRecordState() {
+  return {
+    active: false,
+    samples: [],
+    gates: [],
+    gateIndices: [],
+    lastT: 0,
+    lastX: null,
+    lastY: null,
+    returnToStartT: null
+  };
+}
 function sampleIndexAtOrBeforeTime(samples, t) {
   if (!samples || !samples.length) return 0;
-
   let idx = 0;
   for (let i = 0; i < samples.length; i++) {
     if (samples[i][0] <= t + 1e-6) idx = i;
@@ -293,10 +231,8 @@ function sampleIndexAtOrBeforeTime(samples, t) {
   }
   return idx;
 }
-
 function shouldDrawGhostNow() {
   if (!ghostPlayback.active || !ghostPlayback.samples?.length) return true;
-
   if (
     ghostPlayback.hidden ||
     ghostPlayback.hardHideFrames > 0 ||
@@ -305,144 +241,45 @@ function shouldDrawGhostNow() {
   ) {
     return false;
   }
-
-  // BELANGRIJK:
-  // tijdens returningToStart mag de normale gate-cutoff NIET gelden
   if (ghostPlayback.returningToStart) {
     return true;
   }
-
-  // tijdens resume nog even verborgen houden
   if (ghostPlayback.resumeRequested) {
     return false;
   }
-
   const segs = levels[state.currentLevel] || [];
   const segIdx = Math.max(
     0,
     Math.min(segs.length - 1, ghostPlayback.segmentCursor || 0)
   );
-
   const gateIdx =
   Array.isArray(ghostPlayback.gateIndices)
   ? ghostPlayback.gateIndices[segIdx]
   : null;
-
   if (!Number.isInteger(gateIdx) || gateIdx < 0) return true;
-
   const s = ghostPlayback.samples[gateIdx];
   if (!s) return true;
-
-  // enkel normale cutoff voor gewone segment playback
   return ghostPlayback.clock <= s[0] + 0.0005;
 }
-
 function isTeleportJumpSamplePair(a, b, jumpThreshold = 2.0) {
   if (!a || !b) return false;
-
   const dx = b[1] - a[1];
   const dy = b[2] - a[2];
   const dist = Math.hypot(dx, dy);
-
   return dist >= jumpThreshold;
 }
-
-function getSampleBeforeTeleportJump(samples, gateT, jumpThreshold = 2.0) {
-  if (!samples || samples.length < 2 || gateT == null) return null;
-
-  let lastBeforeGateIndex = -1;
-
-  for (let i = 0; i < samples.length; i++) {
-    if (samples[i][0] < gateT - 0.0005) {
-      lastBeforeGateIndex = i;
-    } else {
-      break;
-    }
-  }
-
-  if (lastBeforeGateIndex <= 0) return null;
-
-  const start = Math.max(1, lastBeforeGateIndex - 6);
-  const end = Math.min(samples.length - 1, lastBeforeGateIndex + 3);
-
-  for (let i = start; i <= end; i++) {
-    const a = samples[i - 1];
-    const b = samples[i];
-
-    const dx = b[1] - a[1];
-    const dy = b[2] - a[2];
-    const dist = Math.hypot(dx, dy);
-
-    if (dist >= jumpThreshold) {
-      return a;
-    }
-  }
-
-  return samples[lastBeforeGateIndex];
-}
-
-
-function getLastSampleBeforeTime(samples, t) {
-  if (!samples || !samples.length) return null;
-
-  let chosen = null;
-  for (let i = 0; i < samples.length; i++) {
-    if (samples[i][0] < t - 0.001) {
-      chosen = samples[i];
-    } else {
-      break;
-    }
-  }
-  return chosen;
-}
-
-
 function forceRecordGhostSampleAt(t, x, y, a) {
   if (!ghostRecord.active) return;
-
   ghostRecord.samples.push({
     t: +t.toFixed(3),
                            x: +x.toFixed(3),
                            y: +y.toFixed(3),
                            a: +a.toFixed(3)
   });
-
   ghostRecord.lastT = t;
   ghostRecord.lastX = x;
   ghostRecord.lastY = y;
 }
-
-
-function setGhostPoseAtOrBeforeTime(p2, t) {
-  const samples = ghostPlayback.samples;
-  if (!samples || !samples.length) return;
-
-  let chosen = samples[0];
-
-  for (let i = 0; i < samples.length; i++) {
-    if (samples[i][0] <= t + 1e-6) {
-      chosen = samples[i];
-    } else {
-      break;
-    }
-  }
-
-  p2.x = chosen[1];
-  p2.y = chosen[2];
-  p2.angle = chosen[3];
-}
-
-function findPLandingForLane(laneChar){ // "1" of "2"
-  for (let y=0; y<state.track.length; y++){
-    for (let x=0; x<state.track[y].length; x++){
-      if (state.track[y][x] === "P" && state.track[y][x+1] === laneChar){
-        return { x: x + 0.5, y: y + 0.5 };
-      }
-    }
-  }
-  return null;
-}
-
 function findPercentSpawnForLane(laneChar){ // "1" of "2"
   for (let y=0; y<state.track.length; y++){
     for (let x=0; x<state.track[y].length; x++){
@@ -453,86 +290,34 @@ function findPercentSpawnForLane(laneChar){ // "1" of "2"
   }
   return null;
 }
-
-function resetAllStats({ resetSettings = false } = {}) {
-  // 1) delete ALL circuitracer_* keys
+function resetAllStats() {
   const toDelete = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (k && k.startsWith("circuitracer_")) toDelete.push(k);
   }
   toDelete.forEach(k => localStorage.removeItem(k));
-
-  // 2) write defaults back (so UI + game starts consistent)
   localStorage.setItem("circuitracer_name_p1", "P1");
   localStorage.setItem("circuitracer_name_p2", "Ghost");
   localStorage.setItem("circuitracer_gender_p1", "M");
   localStorage.setItem("circuitracer_car_p1", "1");
   localStorage.setItem("circuitracer_laps", "3");
-
-  // 3) reset runtime ghost state (RAM)
-  ghostPlayback.active = false;
-  ghostPlayback.samples = null;
-  ghostPlayback.duration = 0;
-  ghostPlayback.clock = 0;
-  ghostPlayback.paused = false;
-  ghostPlayback.gates = [];
-  ghostPlayback.resumeRequested = false;
-  ghostPlayback.resumeDelayFrames = 0;
-  ghostPlayback.resumeNudge = 0;
-  ghostPlayback.returnToStartT = null;
-  ghostPlayback.returningToStart = false;
-  ghostPlayback.resumeTargetTime = null;
-  ghostPlayback.segmentCursor = 0;
-  ghostPlayback.skipGateOnce = false;
-  ghostPlayback.hidden = false;
-  ghostPlayback.segmentReady = false;
-  ghostPlayback.waitingForPlayerTeleport = false;
-  ghostPlayback.hardHideFrames = 0;
-  ghostPlayback.justTeleported = false;
-  ghostPlayback.poseLock = false;
-  ghostPlayback.gateIndices = [];
-
-  ghostRecord.returnToStartT = null;
-  ghostRecord.active = false;
-  ghostRecord.samples = [];
-  ghostRecord.gates = [];
-  ghostRecord.lastT = 0;
-  ghostRecord.lastX = null;
-  ghostRecord.lastY = null;
-  ghostRecord.gateIndices = [];
-
-  // 4) reset UI fields instantly
+  resetGhostPlayback();
+  resetGhostRecord();
   if (ui.startNameP1) ui.startNameP1.value = "P1";
   if (dom.nameP1) dom.nameP1.value = "P1";
   if (dom.nameP2) dom.nameP2.value = "Ghost";
   if (dom.lapInput) dom.lapInput.value = 3;
-
-  // gender radios -> M
   document.querySelectorAll('input[name="genderP1"]').forEach(r => {
     r.checked = (r.value === "M");
   });
   if (ui.driverImg) ui.driverImg.src = "icons/driverM.png";
-
-  // car -> 1 (uses your existing function to update sprite + UI)
-  if (typeof setCarP1 === "function") setCarP1("1");
-  else {
-    // fallback
-    if (ui.selectedCarImg) ui.selectedCarImg.src = "icons/1.png";
-    carSprites.P1.src = "icons/1.png";
-  }
-
-  // 5) refresh stats screen if open
+  setCarP1("1");
   if (typeof renderStats === "function") renderStats();
 }
-
-
-
 btnResetStats?.addEventListener("click", () => {
-  resetAllStats({ resetSettings: true });
+  resetAllStats();
 });
-
-
 function nextSampleTimeAfter(samples, t) {
   if (!samples) return null;
   for (let i = 0; i < samples.length; i++) {
@@ -540,24 +325,9 @@ function nextSampleTimeAfter(samples, t) {
   }
   return null;
 }
-
-function restartGhostPlaybackForLap() {
-  if (!ghostPlayback.active || !ghostPlayback.samples) return;
-
-  ghostPlayback.clock = 0;
-  ghostPlayback.paused = false;
-
-  const s0 = ghostPlayback.samples[0];
-  players.P2.x = s0[1];
-  players.P2.y = s0[2];
-  players.P2.angle = s0[3];
-}
-
-// Helper: zet ghost exact op tijd t (in seconden sinds start run)
 function setGhostPoseAtTime(p2, t) {
   const samples = ghostPlayback.samples;
   if (!samples || samples.length < 2) return;
-
   if (t <= samples[0][0]) {
     const s0 = samples[0];
     p2.x = s0[1]; p2.y = s0[2]; p2.angle = s0[3];
@@ -568,42 +338,31 @@ function setGhostPoseAtTime(p2, t) {
     p2.x = last[1]; p2.y = last[2]; p2.angle = last[3];
     return;
   }
-
   let i = 0;
   while (i < samples.length - 1 && samples[i + 1][0] < t) i++;
-
   const a = samples[i], b = samples[i + 1];
   const tA = a[0], tB = b[0];
   const u = (t - tA) / Math.max(0.0001, (tB - tA));
   const lerp = (v1, v2, u) => v1 + (v2 - v1) * u;
-
   p2.x = lerp(a[1], b[1], u);
   p2.y = lerp(a[2], b[2], u);
-
   const angA = a[3], angB = b[3];
   const d = Math.atan2(Math.sin(angB - angA), Math.cos(angB - angA));
   p2.angle = angA + d * u;
 }
-
-// ✅ FULL: updateGhost met gate-freeze + veilige "resume na teleport"
 function updateGhost(p2, dt) {
   if (!ghostPlayback.active || !ghostPlayback.samples?.length) return;
-
   const samples = ghostPlayback.samples;
-  const EPS = 0.001;
   const TELEPORT_JUMP_DIST = 2.0;
-
   if (ghostPlayback.poseLock) {
     ghostPlayback.hidden = true;
     return;
   }
-
   if (ghostPlayback.hardHideFrames > 0) {
     ghostPlayback.hardHideFrames--;
     ghostPlayback.hidden = true;
     return;
   }
-
   if (!players.P1.started) {
     ghostPlayback.clock = 0;
     ghostPlayback.paused = true;
@@ -616,25 +375,20 @@ function updateGhost(p2, dt) {
     setGhostPoseAtTime(p2, 0);
     return;
   }
-
   if (ghostPlayback.waitingForPlayerTeleport) {
     ghostPlayback.hidden = true;
     return;
   }
-
   if (ghostPlayback.resumeRequested) {
     ghostPlayback.resumeDelayFrames = Math.max(
       0,
       (ghostPlayback.resumeDelayFrames || 0) - 1
     );
-
     if (ghostPlayback.resumeDelayFrames > 0) {
       ghostPlayback.hidden = true;
       return;
     }
-
     ghostPlayback.resumeRequested = false;
-
     if (ghostPlayback.resumeTargetTime != null) {
       ghostPlayback.clock = ghostPlayback.resumeTargetTime;
       ghostPlayback.resumeTargetTime = null;
@@ -642,29 +396,23 @@ function updateGhost(p2, dt) {
       ghostPlayback.clock += ghostPlayback.resumeNudge;
       ghostPlayback.resumeNudge = 0;
     }
-
     ghostPlayback.skipGateOnce = true;
     ghostPlayback.paused = false;
-
     setGhostPoseAtTime(p2, ghostPlayback.clock);
-
     if (ghostPlayback.justTeleported) {
       ghostPlayback.hidden = true;
       ghostPlayback.justTeleported = false;
       return;
     }
-
     ghostPlayback.hidden = !!ghostPlayback.returningToStart;
     return;
   }
-
   if (ghostPlayback.paused) {
     const segs = levels[state.currentLevel] || [];
     const segIdx = Math.max(
       0,
       Math.min(segs.length - 1, ghostPlayback.segmentCursor || 0)
     );
-
     const playerLapT =
     players.P1.runStart != null
     ? (performance.now() / 1000) - players.P1.runStart
@@ -680,7 +428,6 @@ function updateGhost(p2, dt) {
       playerLapT >= ghostTotal
     ) {
       const sTile = findPercentSpawnForLane("1");
-
       if (sTile) {
         p2.x = sTile.x;
         p2.y = sTile.y;
@@ -688,31 +435,25 @@ function updateGhost(p2, dt) {
       } else {
         setGhostPoseAtTime(p2, 0);
       }
-
       ghostPlayback.clock = 0;
       ghostPlayback.hidden = false;
       return;
     }
-
     ghostPlayback.hidden = true;
     return;
   }
-
   const prevT = ghostPlayback.clock;
   const nextT = prevT + dt;
-
   // =========================================
   // RETURNING TO START
   // =========================================
   if (ghostPlayback.returningToStart) {
     ghostPlayback.clock = nextT;
     const t = ghostPlayback.clock;
-
     const stopT =
     ghostPlayback.duration ||
     samples.at(-1)?.[0] ||
     null;
-
     if (stopT != null && t >= stopT) {
       ghostPlayback.clock = stopT;
       setGhostPoseAtTime(p2, stopT);
@@ -721,7 +462,6 @@ function updateGhost(p2, dt) {
       ghostPlayback.returningToStart = false;
       return;
     }
-
     if (t >= samples[samples.length - 1][0]) {
       const last = samples[samples.length - 1];
       p2.x = last[1];
@@ -732,14 +472,10 @@ function updateGhost(p2, dt) {
       ghostPlayback.returningToStart = false;
       return;
     }
-
     let i = 0;
     while (i < samples.length - 1 && samples[i + 1][0] < t) i++;
-
     const a = samples[i];
     const b = samples[i + 1];
-
-    // EXTRA SAFETY: nooit interpoleren over grote teleport-jump
     if (isTeleportJumpSamplePair(a, b, TELEPORT_JUMP_DIST)) {
       ghostPlayback.clock = a[0];
       p2.x = a[1];
@@ -750,42 +486,30 @@ function updateGhost(p2, dt) {
       ghostPlayback.returningToStart = false;
       return;
     }
-
     const tA = a[0];
     const tB = b[0];
     const u = (t - tA) / Math.max(0.0001, (tB - tA));
     const lerp = (v1, v2, uu) => v1 + (v2 - v1) * uu;
-
     p2.x = lerp(a[1], b[1], u);
     p2.y = lerp(a[2], b[2], u);
-
     const angA = a[3];
     const angB = b[3];
     const d = Math.atan2(Math.sin(angB - angA), Math.cos(angB - angA));
     p2.angle = angA + d * u;
-
     ghostPlayback.hidden = false;
     return;
   }
-
-  // =========================================
-  // NORMALE SEGMENT-LOGICA
-  // =========================================
   const segs = levels[state.currentLevel] || [];
   const segIdx = Math.max(
     0,
     Math.min(segs.length - 1, ghostPlayback.segmentCursor || 0)
   );
-
   const gateIdx =
   Array.isArray(ghostPlayback.gateIndices)
   ? ghostPlayback.gateIndices[segIdx]
   : null;
-
-  // Harde sample-index cutoff: nooit voorbij gateIdx renderen
   if (!ghostPlayback.skipGateOnce && Number.isInteger(gateIdx) && gateIdx >= 0) {
     const nextIdx = sampleIndexAtOrBeforeTime(samples, nextT);
-
     if (nextIdx > gateIdx) {
       const s = samples[gateIdx];
       if (s) {
@@ -794,7 +518,6 @@ function updateGhost(p2, dt) {
         p2.y = s[2];
         p2.angle = s[3];
       }
-
       ghostPlayback.hidden = true;
       ghostPlayback.paused = true;
       ghostPlayback.waitingForPlayerTeleport = true;
@@ -802,12 +525,9 @@ function updateGhost(p2, dt) {
       return;
     }
   }
-
   ghostPlayback.skipGateOnce = false;
-
   ghostPlayback.clock = nextT;
   const t = ghostPlayback.clock;
-
   if (t >= samples[samples.length - 1][0]) {
     const last = samples[samples.length - 1];
     p2.x = last[1];
@@ -816,120 +536,83 @@ function updateGhost(p2, dt) {
     ghostPlayback.hidden = false;
     return;
   }
-
   let i = 0;
   while (i < samples.length - 1 && samples[i + 1][0] < t) i++;
-
   const a = samples[i];
   const b = samples[i + 1];
   const tA = a[0];
   const tB = b[0];
   const u = (t - tA) / Math.max(0.0001, (tB - tA));
   const lerp = (v1, v2, uu) => v1 + (v2 - v1) * uu;
-
   p2.x = lerp(a[1], b[1], u);
   p2.y = lerp(a[2], b[2], u);
-
   const angA = a[3];
   const angB = b[3];
   const d = Math.atan2(Math.sin(angB - angA), Math.cos(angB - angA));
   p2.angle = angA + d * u;
-
   ghostPlayback.hidden = false;
 }
-
+function resetP1ForStart(x, y) {
+  resetPlayerForStart(players.P1, x, y, {
+    started: false,
+    lap: 0,
+    finishTime: null,
+    lastTile: null,
+    onStartTile: false,
+    minigameCooldownUntil: 0,
+    inMinigame: false,
+    lapTimes: [],
+    bestLap: null,
+    runStart: null,
+    lapStart: 0,
+    canTriggerCheckpoints: false
+  });
+}
+function resetGhostForStart(x, y) {
+  resetPlayerForStart(players.P2, x, y, {
+    lane: "1"
+  });
+}
 function loadAndArmGhostForCurrentLevel() {
   const lvl = state.currentLevel;
-
   if (!lvl) {
-    ghostPlayback.active = false;
-    ghostPlayback.samples = null;
-    ghostPlayback.duration = 0;
-    ghostPlayback.clock = 0;
-    ghostPlayback.paused = true;
-    ghostPlayback.gates = [];
-    ghostPlayback.returnToStartT = null;
-    ghostPlayback.returningToStart = false;
-    ghostPlayback.resumeRequested = false;
-    ghostPlayback.resumeDelayFrames = 0;
-    ghostPlayback.resumeNudge = 0;
-    ghostPlayback.resumeTargetTime = null;
-    ghostPlayback.segmentCursor = 0;
-    ghostPlayback.skipGateOnce = false;
-    ghostPlayback.hidden = false;
-    ghostPlayback.segmentReady = false;
-    ghostPlayback.waitingForPlayerTeleport = false;
-    ghostPlayback.hardHideFrames = 0;
-    ghostPlayback.justTeleported = false;
-    ghostPlayback.poseLock = false;
-    ghostPlayback.gateIndices = [];
-
+    resetGhostPlayback({ paused: true });
     return;
   }
-
   const tiers = ["best", "gold", "silver", "bronze"];
   let g = null;
-
   for (const t of tiers) {
-    g = loadGhostForLevel(lvl, t);
+    g = loadGhost(lvl, t);
     if (g) break;
   }
-
   if (!g) {
-    ghostPlayback.active = false;
-    ghostPlayback.samples = null;
-    ghostPlayback.duration = 0;
-    ghostPlayback.clock = 0;
-    ghostPlayback.paused = true;
-    ghostPlayback.gates = [];
-    ghostPlayback.returnToStartT = null;
-    ghostPlayback.returningToStart = false;
-    ghostPlayback.resumeRequested = false;
-    ghostPlayback.resumeDelayFrames = 0;
-    ghostPlayback.resumeNudge = 0;
-    ghostPlayback.resumeTargetTime = null;
-    ghostPlayback.segmentCursor = 0;
-    ghostPlayback.skipGateOnce = false;
-    ghostPlayback.hidden = false;
-    ghostPlayback.gateIndices = [];
+    resetGhostPlayback({ paused: true });
     return;
   }
-  ghostPlayback.hidden = false;
-  ghostPlayback.active = true;
-  ghostPlayback.samples = g.samples;
-  ghostPlayback.duration = g.time ?? (g.samples.at(-1)?.[0] ?? 0);
-  ghostPlayback.clock = 0;
-  ghostPlayback.paused = true;
-  ghostPlayback.gates = Array.isArray(g.gates) ? g.gates.slice() : [];
-  ghostPlayback.gateIndices = Array.isArray(g.gateIndices) ? g.gateIndices.slice() : [];
-
-  ghostPlayback.returnToStartT = g.returnToStartT ?? null;
-  ghostPlayback.returningToStart = false; // <-- DEZE WAS NOG NODIG
-  ghostPlayback.resumeRequested = false;
-  ghostPlayback.resumeDelayFrames = 0;
-  ghostPlayback.resumeNudge = 0;
-  ghostPlayback.resumeTargetTime = null;
-  ghostPlayback.segmentCursor = 0;
-  ghostPlayback.skipGateOnce = false;
-
+  resetGhostPlayback({
+    active: true,
+    samples: g.samples,
+    duration: g.time ?? (g.samples.at(-1)?.[0] ?? 0),
+    clock: 0,
+    paused: true,
+    gates: Array.isArray(g.gates) ? g.gates.slice() : [],
+    gateIndices: Array.isArray(g.gateIndices) ? g.gateIndices.slice() : [],
+    returnToStartT: g.returnToStartT ?? null,
+    hidden: false
+  });
   const segs = levels[lvl] || [];
   const lastT = ghostPlayback.duration || ghostPlayback.samples.at(-1)?.[0] || 0;
-
   while (ghostPlayback.gates.length < segs.length) {
     ghostPlayback.gates.push(null);
   }
-
   if (segs.length >= 2 && ghostPlayback.gates[segs.length - 1] == null) {
     ghostPlayback.gates[segs.length - 1] = +lastT.toFixed(3);
   }
-
   const s0 = ghostPlayback.samples[0];
   players.P2.x = s0[1];
   players.P2.y = s0[2];
   players.P2.angle = s0[3];
 }
-
-
 function startGhostRecording(){
   ghostRecord.active = true;
   ghostRecord.samples = [];
@@ -940,22 +623,16 @@ function startGhostRecording(){
   ghostRecord.lastY = null;
   ghostRecord.returnToStartT = null;
 }
-
 function stopGhostRecording(){
   ghostRecord.active = false;
 }
-
 function recordGhostSample(){
   if(!ghostRecord.active) return;
-
   const p = players.P1;
   if(!p.started || p.runStart == null) return;
-
   const t = (performance.now()/1000) - p.runStart;   // ✅ runStart !!
   const step = 1 / GHOST_HZ;
   if (t - ghostRecord.lastT < step) return;
-
-  // dist filter blijft ok
   if (ghostRecord.lastX != null && ghostRecord.lastY != null) {
     const dx = p.x - ghostRecord.lastX;
     const dy = p.y - ghostRecord.lastY;
@@ -964,42 +641,14 @@ function recordGhostSample(){
       return;
     }
   }
-
   ghostRecord.samples.push({ t, x:p.x, y:p.y, a:p.angle });
   ghostRecord.lastT = t;
   ghostRecord.lastX = p.x;
   ghostRecord.lastY = p.y;
 }
-
-function medalForLap(tableName, lapTimeSec){
-  const tar = getMedalTargetsForTable(tableName);
-  if (!tar) return null;
-
-  // snel genoeg = medal (lager is beter)
-  if (tar.gold != null && lapTimeSec <= tar.gold) return "gold";
-  if (tar.silver != null && lapTimeSec <= tar.silver) return "silver";
-  if (tar.bronze != null && lapTimeSec <= tar.bronze) return "bronze";
-  return null;
-}
-
 function ghostKey(levelName, tier){
   return `circuitracer_ghost_${tier}_${levelName}`;
 }
-
-function loadGhostForLevel(levelName, tier = "best"){
-  try {
-    const raw = localStorage.getItem(ghostKey(levelName, tier));
-    if (!raw) return null;
-
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data.samples) || data.samples.length < 2) return null;
-
-    return data;
-  } catch {
-    return null;
-  }
-}
-
 function saveGhost(levelName, tier, time, samples, gates = [], gateIndices = [], returnToStartT = null) {
   const packed = samples.map(s => [
     +s.t.toFixed(3),
@@ -1016,19 +665,19 @@ function saveGhost(levelName, tier, time, samples, gates = [], gateIndices = [],
     gateIndices,
     returnToStartT
   };
-
   localStorage.setItem(ghostKey(levelName, tier), JSON.stringify(payload));
 }
-function loadGhost(levelName, tier){
-  try{
+function loadGhost(levelName, tier = "best") {
+  try {
     const raw = localStorage.getItem(ghostKey(levelName, tier));
-    if(!raw) return null;
+    if (!raw) return null;
     const data = JSON.parse(raw);
-    if(!Array.isArray(data.samples) || data.samples.length < 2) return null;
+    if (!Array.isArray(data.samples) || data.samples.length < 2) return null;
     return data;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
-
 function upsertMedalGhost(levelName, tier, time, samples, gates, gateIndices, returnToStartT = null){
   const existing = loadGhost(levelName, tier);
   if (!existing || time < existing.time) {
@@ -1037,50 +686,17 @@ function upsertMedalGhost(levelName, tier, time, samples, gates, gateIndices, re
   }
   return false;
 }
-
-
-
-
-
-
-
-
-function parseTimeStrToSec(s){
-  // accepteert: "00:30", "01:02.500", "15.250" (fallback)
-  if (typeof s !== "string") return null;
-
-  if (s.includes(":")) {
-    const [mm, rest] = s.split(":");
-    const m = parseInt(mm, 10);
-    const sec = parseFloat(rest.replace(",", "."));
-    if (!Number.isFinite(m) || !Number.isFinite(sec)) return null;
-    return m * 60 + sec;
-  }
-
-  const v = parseFloat(s.replace(",", "."));
-  return Number.isFinite(v) ? v : null;
+function hideAllMenus() {
+  [
+    ui.startMenu,
+    ui.statsMenu,
+    carSelectMenu,
+    dom.trackMenu,
+    dom.overlay
+  ].forEach(el => {
+    if (el) el.style.display = "none";
+  });
 }
-
-function getMedalTargetsForTable(tableName){
-  const t = tracks?.[tableName];
-  const medals = t?.medals;
-  if (!medals) return null;
-
-  return {
-    bronze: parseTimeStrToSec(medals.bronze),
-    silver: parseTimeStrToSec(medals.silver),
-    gold:   parseTimeStrToSec(medals.gold),
-  };
-}
-
-function hideAllMenus(){
-  ui.startMenu.style.display = "none";
-  ui.statsMenu.style.display = "none";
-  carSelectMenu.style.display = "none";
-  dom.trackMenu.style.display = "none";
-  dom.overlay.style.display = "none";
-}
-
 function getGenderP1() {
   const saved = localStorage.getItem(SETTINGS_KEYS.genderP1) || "M";
   return (saved === "V") ? "V" : "M";
@@ -1089,7 +705,6 @@ function setGenderP1(g) {
   localStorage.setItem(SETTINGS_KEYS.genderP1, g);
   ui.driverImg.src = (g === "V") ? "icons/driverV.png" : "icons/driverM.png";
 }
-
 function getCarP1() {
   const saved = localStorage.getItem(SETTINGS_KEYS.carP1) || "1";
   const n = parseInt(saved, 10);
@@ -1098,66 +713,45 @@ function getCarP1() {
 }
 function setCarP1(carId) {
   localStorage.setItem(SETTINGS_KEYS.carP1, String(carId));
-
   if (ui.selectedCarImg) {
     ui.selectedCarImg.src = `icons/${carId}.png`;
     ui.selectedCarImg.alt = `Car ${carId}`;
   }
-
   if (ui.selectedCarLabel) {
     ui.selectedCarLabel.textContent = `Selected car: ${carId}`;
   }
-
   carSprites.P1.src = `icons/${carId}.png`;
 }
-
 function initStartScreen() {
-  // sync naam
   const savedName = localStorage.getItem(SETTINGS_KEYS.nameP1) || (dom.nameP1?.value || "P1");
   ui.startNameP1.value = savedName;
   if (dom.nameP1) dom.nameP1.value = savedName;
-
   ui.startNameP1.addEventListener("input", () => {
     localStorage.setItem(SETTINGS_KEYS.nameP1, ui.startNameP1.value);
     if (dom.nameP1) dom.nameP1.value = ui.startNameP1.value;
   });
-
-    // gender radios + image
     const g = getGenderP1();
     document.querySelectorAll('input[name="genderP1"]').forEach(r => {
       r.checked = (r.value === g);
       r.addEventListener("change", () => setGenderP1(r.value));
     });
     setGenderP1(g);
-
-    // car grid render
     ui.carGridOverlay.innerHTML = "";
     const currentCar = getCarP1();
-    setCarP1(currentCar); // force refresh
+    setCarP1(currentCar);
     for (let i = 1; i <= 5; i++) {
       const img = document.createElement("img");
       img.src = `icons/${i}.png`;
       img.alt = `Car ${i}`;
-
       if (String(i) === String(currentCar)) img.classList.add("selected");
-
       img.addEventListener("click", () => {
-        // selected highlight
         ui.carGridOverlay.querySelectorAll("img").forEach(x => x.classList.remove("selected"));
         img.classList.add("selected");
-
-        // save + UI update
         setCarP1(i);
-
-        // overlay sluiten na keuze
         if (carSelectMenu) carSelectMenu.style.display = "none";
       });
-
         ui.carGridOverlay.appendChild(img);
     }
-
-    // set initial chosen car sprite + label + text
-    setCarP1(currentCar);
 
     // buttons
     ui.btnNewRace.addEventListener("click", () => {
@@ -1174,13 +768,10 @@ function initStartScreen() {
       hideAllMenus();
       ui.startMenu.style.display = "flex";
     });
-
-    // bij load: startmenu tonen, trackmenu verbergen
     ui.startMenu.style.display = "flex";
     ui.statsMenu.style.display = "none";
     dom.trackMenu.style.display = "none";
 }
-
 // =====================
 // STATS RENDER (per LVL: best time + date)
 // =====================
@@ -1195,48 +786,35 @@ function readBestLapForTable(tableName) {
     return null;
   }
 }
-
-
 function renderStats() {
   ui.statsList.innerHTML = "";
-
   Object.keys(levels).forEach(lvl => {
     const tables = levels[lvl];
     let best = null;
-
-    // beste zoeken over subtracks
     for (const t of tables) {
       const r = readBestLapForTable(t);
       if (!r) continue;
       if (!best || r.time < best.time) best = r;
     }
-
     const block = document.createElement("div");
     block.className = "statBlock";
-
-    // TITLE (geel, groot, gecentreerd)
     const title = document.createElement("div");
     title.className = "statLvlTitle";
     title.textContent = lvl;
     block.appendChild(title);
-
     const addLine = (label, value) => {
       const line = document.createElement("div");
       line.className = "statLine";
-
       const l = document.createElement("span");
       l.className = "label";
       l.textContent = label;
-
       const v = document.createElement("span");
       v.className = "value";
       v.textContent = value;
-
       line.appendChild(l);
       line.appendChild(v);
       block.appendChild(line);
     };
-
     if (!best) {
       addLine("Best time:", "--");
       addLine("When:", "--");
@@ -1248,12 +826,9 @@ function renderStats() {
         hour: "2-digit",
         minute: "2-digit"
       });
-
       addLine("Best time:", formatTime(best.time));
       addLine("When:", when);
     }
-
-    // ASCII lijn
     const sep = document.createElement("div");
     sep.className = "statAsciiSep";
     sep.textContent = "==================";
@@ -1262,11 +837,6 @@ function renderStats() {
     ui.statsList.appendChild(block);
   });
 }
-
-
-
-
-
 function bestLapKey() {
   return `circuitracer_bestlap_${state.currentTable}`;
 }
@@ -1281,7 +851,6 @@ function loadBestLap() {
     return null;
   }
 }
-
 function saveBestLapIfBetter(lapTime) {
   const current = loadBestLap();
   if (!current || lapTime < current.time) {
@@ -1296,16 +865,9 @@ function saveBestLapIfBetter(lapTime) {
   }
   return current;
 }
-
-
-
-
-
-
 function stickForP1(){
   return getCombinedStick();
 }
-// Nieuw: aparte functie voor eerste starttiles
 function setPlayersToStart() {
   // ⚠️ vind startpositie van de P1 en P2
   for (let y = 0; y < state.track.length; y++) {
@@ -1313,55 +875,20 @@ function setPlayersToStart() {
       const tile = state.track[y][x];
       if (tile === "%" && x + 1 < state.track[y].length) {
         const nextTile = state.track[y][x + 1];
-
-        if (nextTile === "1") {
-          Object.assign(players.P1, {
-            x: x + 0.5,
-            y: y + 0.5,
-            lapTimes: [],
-            angle: Math.PI / 2,
-            started: false,
-            lap: 0,
-            finishTime: null,
-            lastTile: null,
-            onStartTile: false,
-            minigameCooldownUntil: 0,
-            inMinigame: false
-          });
-        }
-        if (nextTile === "2") {
-          Object.assign(players.P2, {
-            x: x + 0.5,
-            y: y + 0.5,
-            angle: Math.PI / 2,
-            lapTimes: [],
-            started: false,
-            lap: 0,
-            finishTime: null,
-            lastTile: null,
-            onStartTile: false,
-            minigameCooldownUntil: 0,
-            inMinigame: false
-          });
-        }
+        if (nextTile === "1") resetPlayerForStart(players.P1, x + 0.5, y + 0.5);
+        if (nextTile === "1") resetPlayerForStart(players.P2, x + 0.5, y + 0.5);
         x++; // overslaan van het volgende teken
       }
     }
   }
-  console.log("P1", players.P1.x, players.P1.y, "P2", players.P2.x, players.P2.y);
-}
 
+}
 function startLevel(level){
   hideAllMenus();
   dom.gameWrapper.style.display = "flex";
-
   state.currentLevel = level;
-  state.currentSectionIndex = 0;
   state.gameOver = false;
-
-  // ✅ ghost 1x laden bij start van een level (niet per subtrack)
   loadAndArmGhostForCurrentLevel();
-
   lastTime = performance.now();
   startTrack(levels[level][0]);
 }
@@ -1416,7 +943,6 @@ function startTrack(levelName) {
   const trackMenu = dom.trackMenu;
   if (trackMenu) trackMenu.style.display = "none";
   dom.gameWrapper.style.display = "flex";
-  //Track opbouwen
   const raw = tracks[levelName];
   if (!raw) {
     console.warn("Track niet gevonden:", levelName);
@@ -1425,8 +951,6 @@ function startTrack(levelName) {
   state.activeTrack = buildTrackData(levelName, raw);
   state.track = state.activeTrack.map;
   state.currentTable = levelName;
-
-
   initLevelCheckpoints(state.currentLevel);
   const subIndex = levels[state.currentLevel].indexOf(levelName);
   if (subIndex === 0) {
@@ -1439,171 +963,18 @@ function startTrack(levelName) {
     };
   }
   const ghostActive = !!(ghostPlayback.active && ghostPlayback.samples?.length);
-
   if (!ghostActive) {
     setPlayersToStart();
   } else {
-    // alleen P1 naar start zetten
     for (let y = 0; y < state.track.length; y++) {
       for (let x = 0; x < state.track[y].length; x++) {
         const tile = state.track[y][x];
+
         if (tile === "%" && x + 1 < state.track[y].length) {
           const nextTile = state.track[y][x + 1];
 
           if (nextTile === "1") {
-            Object.assign(players.P1, {
-              x: x + 0.5,
-              y: y + 0.5,
-              lapTimes: [],
-              angle: Math.PI / 2,
-              started: false,
-              lap: 0,
-              finishTime: null,
-              lastTile: null,
-              onStartTile: false,
-              minigameCooldownUntil: 0,
-              inMinigame: false
-            });
-          }
-        }
-      }
-    }
-  }
-
-  players.P1.lapTimes = [];
-  players.P2.lapTimes = [];
-  resizeCanvas();
-  checkOrientation();
-  if (!window.__gameLoopRunning) {
-    window.__gameLoopRunning = true;
-
-    requestAnimationFrame(loop);
-  }
-}
-
-function teleportToNextSubLevel() {
-  const next = getNextSubLevel();
-  if (!next) return;
-
-  const customSpawn = {
-    P1: findExitForLane(players.P1.lane),
-    P2: findExitForLane(players.P2.lane)
-  };
-
-  selectTrack(next, state.currentLevel, customSpawn, false);
-
-  players.P1.lastTile = null;
-  players.P2.lastTile = null;
-
-  if (players.P1.started) {
-    players.P1.segmentStart = performance.now()/1000;
-  }
-
-
-}
-function buildTrackData(name, rawTrack) {
-  // ✅ elke tile blijft 1 char
-  const map = rawTrack.map.map(row => {
-    if (typeof row === "string") return row.split("");
-    if (Array.isArray(row) && typeof row[0] === "string") return row[0].split("");
-    return row; // fallback
-  });
-
-  const spawns = {};
-
-  // ✅ spawns vinden: "%" gevolgd door "1" of "2" rechts ervan
-  for (let y = 0; y < map.length; y++) {
-    for (let x = 0; x < map[y].length; x++) {
-      if (map[y][x] === "%" && x + 1 < map[y].length) {
-        const next = map[y][x + 1];
-        if (next === "1") spawns["P1"] = { x: x + 0.5, y: y + 0.5 };
-        if (next === "2") spawns["P2"] = { x: x + 0.5, y: y + 0.5 };
-      }
-    }
-  }
-
-  return { name, map, spawns };
-}
-function determineLane(x, y, currentLane) {
-  const t = tileAt(x, y);
-  if (t === "1") return "1";
-  if (t === "2") return "2";
-  // ❌ nooit gokken met x < mid
-  return currentLane;
-}
-function getNextSubLevel() {
-  const sections = levels[state.currentLevel];
-  const idx = sections.indexOf(state.currentTable);
-  const nextIndex = (idx + 1) % sections.length;
-  state.currentSectionIndex = nextIndex;
-  return sections[nextIndex];
-}
-
-
-
-function selectTrack(name, level = null, customSpawn = {}, preservePlayerState = false) {
-  // Track ophalen en bouwen
-  const raw = tracks[name];
-  if (!raw) { console.warn("Track not found:", name); return; }
-
-  state.activeTrack = buildTrackData(name, raw);
-  state.track = state.activeTrack.map;
-  if (level) state.currentLevel = level;
-  state.currentTable = name;
-
-  // checkpoints init
-  initLevelCheckpoints(state.currentLevel);
-  const subIndex = levels[state.currentLevel].indexOf(name);
-
-  if (subIndex === 0) {
-    // persistent
-    state.activeTrack.checkpoints = state.levelCheckpointState[state.currentLevel].persistent;
-  } else {
-    // dynamic → altijd nieuw
-    const cps = countCPFromMap(state.activeTrack.map);
-    state.levelCheckpointState[state.currentLevel].dynamic = {
-      "1": cps["1"].map(cp => ({ tileSet: cp.tileSet, hitByPlayer: new Set() })),
-      "2": cps["2"].map(cp => ({ tileSet: cp.tileSet, hitByPlayer: new Set() }))
-    };
-    state.activeTrack.checkpoints = state.levelCheckpointState[state.currentLevel].dynamic;
-  }
-
-  // -------------------------
-  // Spelerspositionering
-  // -------------------------
-  const ghostActive = !!(ghostPlayback.active && ghostPlayback.samples?.length);
-
-  let p1Set = false, p2Set = false;
-
-  // custom spawns
-  if (customSpawn.P1) {
-    Object.assign(players.P1, { ...customSpawn.P1, angle: Math.PI / 2 });
-    p1Set = true;
-  }
-  // ✅ P2 custom spawn alleen als het GEEN ghost playback is
-  if (customSpawn.P2 && !ghostActive) {
-    Object.assign(players.P2, { ...customSpawn.P2, angle: Math.PI / 2 });
-    p2Set = true;
-  }
-
-  // Normale P-tiles alleen als geen custom spawn **en niet preservePlayerState**
-  // ✅ maar: P2 P-tile spawns nooit gebruiken als ghostActive
-  if (!preservePlayerState) {
-    for (let y = 0; y < state.track.length && (!p1Set || !p2Set); y++) {
-      for (let x = 0; x < state.track[y].length && (!p1Set || !p2Set); x++) {
-        const tile = state.track[y][x];
-        if (tile === "P" && x + 1 < state.track[y].length) {
-          const nextTile = state.track[y][x + 1];
-
-          if (nextTile === "1" && !p1Set) {
-            Object.assign(players.P1, { x: x + 0.5, y: y + 0.5, angle: Math.PI / 2 });
-            p1Set = true;
-          }
-
-          // ✅ P2 via P-tile enkel als GEEN ghost playback
-          if (nextTile === "2" && !p2Set && !ghostActive) {
-            Object.assign(players.P2, { x: x + 0.5, y: y + 0.5, angle: Math.PI / 2 });
-            p2Set = true;
+            resetP1ForStart(x + 0.5, y + 0.5);
           }
 
           x++;
@@ -1611,45 +982,110 @@ function selectTrack(name, level = null, customSpawn = {}, preservePlayerState =
       }
     }
   }
-
-  // fallback: alleen als niet preservePlayerState
-  // ✅ P2 fallback nooit gebruiken als ghostActive (pose komt van playback)
+  players.P1.lapTimes = [];
+  resizeCanvas();
+  checkOrientation();
+  if (!window.__gameLoopRunning) {
+    window.__gameLoopRunning = true;
+    requestAnimationFrame(loop);
+  }
+}
+function buildTrackData(name, rawTrack) {
+  const map = rawTrack.map.map(row => {
+    if (typeof row === "string") return row.split("");
+    if (Array.isArray(row) && typeof row[0] === "string") return row[0].split("");
+    return row;
+  });
+  return { name, map };
+}
+function determineLane(x, y, currentLane) {
+  const t = tileAt(x, y);
+  if (t === "1") return "1";
+  if (t === "2") return "2";
+  return currentLane;
+}
+function getNextSubLevel() {
+  const sections = levels[state.currentLevel];
+  const idx = sections.indexOf(state.currentTable);
+  const nextIndex = (idx + 1) % sections.length;
+  return sections[nextIndex];
+}
+function selectTrack(name, level = null, customSpawn = {}, preservePlayerState = false) {
+  const raw = tracks[name];
+  if (!raw) { console.warn("Track not found:", name); return; }
+  state.activeTrack = buildTrackData(name, raw);
+  state.track = state.activeTrack.map;
+  if (level) state.currentLevel = level;
+  state.currentTable = name;
+  initLevelCheckpoints(state.currentLevel);
+  const subIndex = levels[state.currentLevel].indexOf(name);
+  if (subIndex === 0) {
+    state.activeTrack.checkpoints = state.levelCheckpointState[state.currentLevel].persistent;
+  } else {
+    const cps = countCPFromMap(state.activeTrack.map);
+    state.levelCheckpointState[state.currentLevel].dynamic = {
+      "1": cps["1"].map(cp => ({ tileSet: cp.tileSet, hitByPlayer: new Set() })),
+      "2": cps["2"].map(cp => ({ tileSet: cp.tileSet, hitByPlayer: new Set() }))
+    };
+    state.activeTrack.checkpoints = state.levelCheckpointState[state.currentLevel].dynamic;
+  }
+  // -------------------------
+  // Spelerspositionering
+  // -------------------------
+  const ghostActive = !!(ghostPlayback.active && ghostPlayback.samples?.length);
+  let p1Set = false,  p2Set = false;
+  if (customSpawn.P1) {
+    Object.assign(players.P1, { ...customSpawn.P1, angle: Math.PI / 2 });
+    p1Set = true;
+  }
+  if (customSpawn.P2 && !ghostActive) {
+    Object.assign(players.P2, { ...customSpawn.P2, angle: Math.PI / 2 });
+    p2Set = true;
+  }
+  if (!preservePlayerState) {
+    for (let y = 0; y < state.track.length && (!p1Set || !p2Set); y++) {
+      for (let x = 0; x < state.track[y].length && (!p1Set || !p2Set); x++) {
+        const tile = state.track[y][x];
+        if (tile === "P" && x + 1 < state.track[y].length) {
+          const nextTile = state.track[y][x + 1];
+          if (nextTile === "1" && !p1Set) {
+            Object.assign(players.P1, { x: x + 0.5, y: y + 0.5, angle: Math.PI / 2 });
+            p1Set = true;
+          }
+          if (nextTile === "1" && !p2Set && !ghostActive) {
+            Object.assign(players.P2, { x: x + 0.5, y: y + 0.5, angle: Math.PI / 2 });
+            p2Set = true;
+          }
+          x++;
+        }
+      }
+    }
+  }
   if (!preservePlayerState) {
     if (!p1Set) Object.assign(players.P1, { x: 1, y: 1, angle: -Math.PI / 2 });
     if (!p2Set && !ghostActive) Object.assign(players.P2, { x: 2, y: 1, angle: -Math.PI / 2 });
   }
-
-  // lanes bepalen
   players.P1.lane = determineLane(Math.floor(players.P1.x), Math.floor(players.P1.y), "1");
-  // ✅ als ghostActive: lane van P2 niet overschrijven met maplogica; hou "2"
   if (!ghostActive) {
     players.P2.lane = determineLane(Math.floor(players.P2.x), Math.floor(players.P2.y), "2");
   } else {
     players.P2.lane = "2";
   }
-
-  // ✅ Ghost override: P2 position is controlled by playback, not by map spawns
   if (ghostActive && !state.teleporting && !ghostPlayback.poseLock) {
     setGhostPoseAtTime(players.P2, ghostPlayback.clock || 0);
-    p2Set = true;
   }
-
   resizeCanvas();
   checkOrientation();
-
   if (!window.__gameLoopRunning) {
     window.__gameLoopRunning = true;
     lastTime = performance.now();
     requestAnimationFrame(loop);
   }
 }
-
 function resizeMinigameCanvas(pName){
   if (pName !== "P1") return;
-
   const panel = dom.panelP1;
   const canvasMG = mgCanvases.P1;
-
   canvasMG.width  = panel.clientWidth - 12;
   canvasMG.height = panel.clientHeight - 20;
   const desired = canvasMG.width * 0.65;
@@ -1687,21 +1123,17 @@ function initLevelCheckpoints(level) {
   };
 }
 function resizeCanvas() {
-  if (!state.track) return; // veiligheid: track moet geladen zijn
-  //bereken de echte canvas grootte op basis van tiles
+  if (!state.track) return;
   const gameWidth  = state.track[0].length * CONFIG.TILE_SIZE;
   const gameHeight = state.track.length * CONFIG.TILE_SIZE;
   canvas.width  = gameWidth;
   canvas.height = gameHeight;
-  // bereken schaal zodat het past in het wrapper-element
   const wrapper = dom.gameWrapper;
   const vw = window.innerWidth;
   const vh = wrapper.clientHeight;
   const scale = Math.min(vw / gameWidth, vh / gameHeight);
   canvas.style.width  = (gameWidth  * scale) + "px";
   canvas.style.height = (gameHeight * scale) + "px";
-  // update minigame plank-grootte op basis van green field
-
   positionMinigamePanel("P1");
 }
 window.addEventListener("resize", checkOrientation);
@@ -1712,33 +1144,24 @@ function tileAt(x, y) {
   return null;
 }
 function startMinigame(pName, tileChar) {
-  // ✅ force: minigames zijn altijd P1-only
   pName = "P1";
-
   const mgType = MINIGAME_MAPPING[tileChar];
   if (!mgType || players.P1.inMinigame) return;
-
   players.P1.inMinigame = true;
   players.P1.minigameCooldown = true;
-  activeMinigames.P1 = mgType;
-
   dom.minigameOverlay.style.display = "flex";
-
   const callback = () => {
     const p = players.P1;
     p.minigameCooldownUntil = performance.now() + 350;
-
     const exit = findExitForLane(p.lane);
     if (exit) {
       p.x = exit.x + 0.5;
       p.y = exit.y + 0.5;
     }
-
     dom.minigameOverlay.style.display = "none";
     p.inMinigame = false;
     p.minigameCooldown = false;
   };
-
   switch (mgType) {
     case "balance": startBalanceMinigame("P1", callback); break;
     case "looping": startLoopingMinigame("P1", callback); break;
@@ -1746,7 +1169,6 @@ function startMinigame(pName, tileChar) {
   }
 }
 //-----------------------MINIGAME Functies------------------------------
-//-----------------------------------------------------
 function startBalanceMinigame(pName, callback){
   const mg = minigameState[pName];
   if(mg.active) return;
@@ -1757,7 +1179,7 @@ function startBalanceMinigame(pName, callback){
   mg.balanceTime = 0;
   mg.completed = false;
   mg.lastTime = performance.now();
-  const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+  const panel = document.getElementById("panelP1");
   panel.style.display = "flex";
   positionMinigamePanel(pName);
   function anim(){
@@ -1777,7 +1199,6 @@ function animateBalanceMinigame(pName) {
   const canvasMG = mgCanvases[pName];
   const ctxMG = mgCtxs[pName];
   const mg = minigameState[pName];
-
   const now = performance.now();
   const dt = Math.min(0.05, (now - mg.lastTime) / 1000);
   mg.lastTime = now;
@@ -1837,7 +1258,7 @@ function startLoopingMinigame(pName, callback) {
   mg.active = true;
   mg.completed = false;
   mg.lastTime = performance.now();
-  const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+  const panel = document.getElementById("panelP1");
   panel.style.display = "flex";
   positionMinigamePanel(pName);
   const canvasMG = mgCanvases[pName];
@@ -1932,23 +1353,18 @@ function startLoopingMinigame(pName, callback) {
 function startJumpMinigame(pName, callback) {
   const mg = minigameState[pName];
   if (mg.active) return;
-
   mg.active = true;
   mg.completed = false;
   mg.lastTime = performance.now();
-
-  const panel = document.getElementById(pName === "P1" ? "panelP1" : "panelP2");
+  const panel = document.getElementById("panelP1");
   panel.style.display = "flex";
   positionMinigamePanel(pName);
-
   const canvas = mgCanvases[pName];
   const ctx = mgCtxs[pName];
-
   const barWidth = canvas.width * 0.8;
   const barHeight = 20;
   const barX = (canvas.width - barWidth) / 2;
   const barY = canvas.height / 2;
-
   const zones = (() => {
     const redWidth = barWidth * 0.4;
     const greenWidth = barWidth * 0.2;
@@ -1958,113 +1374,76 @@ function startJumpMinigame(pName, callback) {
       rightRed: { x: barX + redWidth + greenWidth,  w: redWidth }
     };
   })();
-
   const BASE_SPEED = canvas.width * 0.6;
   const arrow = { x: barX, w: 10, speed: BASE_SPEED, dir: 1 };
-
   const JUMP_THRESHOLD = -0.35;
-
   let prevStickY = 0;
   let prevKeyDown = false;
-
-  // korte lock na crash zodat je niet instant opnieuw triggert
   let crashLockUntil = 0;
-
   const isJumpKeyDown = () =>
   (keys["z"] || keys["arrowup"] || keys["i"] || keys["8"]);
-
   function resetAttempt(now, s, keyDown) {
-    // pijl terug naar start + blijft bewegen
     arrow.x = barX;
     arrow.dir = 1;
     arrow.speed = BASE_SPEED;
-
-    // verplicht "release" (stick terug omhoog / knop loslaten)
-    prevStickY = s.y;       // snapshot huidige positie
-    prevKeyDown = keyDown;  // snapshot huidige key state
-
+    prevStickY = s.y;
+    prevKeyDown = keyDown;
     crashLockUntil = now + 250;
   }
-
-  function endMinigame(success) {
+  function endMinigame() {
     mg.active = false;
     panel.style.display = "none";
     players[pName].lastTile = null;
     if (callback) callback();
   }
-
   function anim() {
     if (!mg.active) return;
-
     const now = performance.now();
     const dt = Math.min(0.03, (now - mg.lastTime) / 1000);
     mg.lastTime = now;
-
     // arrow move: ALTIJD
     arrow.x += arrow.speed * arrow.dir * dt;
     if (arrow.x <= barX) arrow.dir = 1;
     if (arrow.x + arrow.w >= barX + barWidth) arrow.dir = -1;
-
     const s = stickForP1();
     const keyDown = isJumpKeyDown();
-
     const locked = now < crashLockUntil;
-
     if (!locked) {
       const joystickEdge = prevStickY >= JUMP_THRESHOLD && s.y < JUMP_THRESHOLD;
       const keyEdge = !prevKeyDown && keyDown;
-
       if (joystickEdge || keyEdge) {
         const left = arrow.x;
         const right = arrow.x + arrow.w;
-
         const inLeftRed  = right <= zones.leftRed.x + zones.leftRed.w;
         const inRightRed = left  >= zones.rightRed.x;
         const crash = inLeftRed || inRightRed;
-
-        const perfect =
-        left >= zones.green.x &&
-        right <= zones.green.x + zones.green.w;
-
         if (crash) {
-          // ❌ MISS -> nieuwe poging (minigame blijft open)
           resetAttempt(now, s, keyDown);
         } else {
-          // ✅ success (of gebruik perfect als enkel groen telt)
-          endMinigame(true); // of: endMinigame(perfect);
+          endMinigame();
           return;
         }
       }
     }
-
-    // ✅ SUPER BELANGRIJK: edge geheugen altijd updaten, anders voelt het "vast"
     prevStickY = s.y;
     prevKeyDown = keyDown;
-
     // DRAW
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     ctx.fillStyle = "red";
     ctx.fillRect(zones.leftRed.x,  barY, zones.leftRed.w,  barHeight);
     ctx.fillRect(zones.rightRed.x, barY, zones.rightRed.w, barHeight);
-
     ctx.fillStyle = "green";
     ctx.fillRect(zones.green.x, barY, zones.green.w, barHeight);
-
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 2;
     ctx.strokeRect(barX, barY, barWidth, barHeight);
-
     ctx.fillStyle = "white";
     ctx.fillRect(arrow.x, barY - 15, arrow.w, barHeight + 30);
-
     ctx.font = "bold 18px Arial";
     ctx.textAlign = "center";
     ctx.fillText("PUSH UP!", canvas.width / 2, barY - 30);
-
     requestAnimationFrame(anim);
   }
-
   requestAnimationFrame(anim);
 }
 //--------------------------------------------
@@ -2093,15 +1472,11 @@ function findExitForLane(lane){
         tileAt(x,y-1),
         tileAt(x,y+1)
       ];
-      if(
+      if (
         (lane === "1" && around.includes("1")) ||
         (lane === "2" && around.includes("2"))
-      ){
-        if(lane === "1") {
-          return { x: x + 1, y };
-        } else {
-          return { x: x + 1, y };
-        }
+      ) {
+        return { x: x + 1, y };
       }
     }
   }
@@ -2151,17 +1526,13 @@ function setupStick(stickId, player){
 }
 setupStick("stickP1", "P1");
 setupStick("stickP2", "P2");
-
-
-
-
 function getCombinedStick(){
   return {
     x: Math.max(-1, Math.min(1, sticks.P1.x + sticks.P2.x)),
     y: Math.max(-1, Math.min(1, sticks.P1.y + sticks.P2.y))
   };
 }
-// === Update speler ===
+// === update speler ===
 function updatePlayer(p, dt){
   if(p.inMinigame) return;
   let ax=0, ay=0;
@@ -2172,12 +1543,10 @@ function updatePlayer(p, dt){
     }
   }
   let s = {x:0, y:0};
-
   if (p === players.P1) {
-    s = getCombinedStick();   // 🔥 beide joysticks sturen P1
+    s = getCombinedStick();
     recordGhostSample();
   }
-
   ax += s.x;
   ay += s.y;
   const len = Math.hypot(ax, ay);
@@ -2195,12 +1564,10 @@ function updatePlayer(p, dt){
     if (walkableTile(p, nx, p.y)) p.x = nx;
     if (walkableTile(p, p.x, ny)) p.y = ny;
   }
-  // ✅ Hier lane auto-correct
-  // Lane is state, map mag het wijzigen — nooit omgekeerd
   const lane = determineLane(
     Math.floor(p.x),
-                             Math.floor(p.y),
-                             p.lane
+    Math.floor(p.y),
+    p.lane
   );
   if (lane && lane !== p.lane) {
     p.lane = lane;
@@ -2210,30 +1577,24 @@ function updatePlayer(p, dt){
 }
 // === Check triggers ===
 function checkTriggers(p, now, pName) {
-
   if (!state.activeTrack) return;
-
   // checkpoints kunnen even null zijn (bv. net na load). Triggers zoals start/ghost moeten nog kunnen.
   if (!state.activeTrack.checkpoints) {
     p.lastTile = tileAt(Math.floor(p.x), Math.floor(p.y));
     return;
   }
-
   const tx = Math.floor(p.x);
   const ty = Math.floor(p.y);
   const tile = tileAt(tx, ty);
-
   // always keep lastTile updated on early exit
   if (state.gameOver || p.inMinigame) {
     p.lastTile = tile;
     return;
   }
-
   // ✅ ensure Sets
   Object.values(state.activeTrack.checkpoints).forEach(laneCps => {
     laneCps.forEach(cp => { if (!cp.hitByPlayer) cp.hitByPlayer = new Set(); });
   });
-
   const playerTile = `${tx},${ty}`;
   const laneCps = state.activeTrack.checkpoints[p.lane] || [];
   // =====
@@ -2275,7 +1636,6 @@ function checkTriggers(p, now, pName) {
             ghostPlayback.resumeDelayFrames = 0;
             ghostPlayback.resumeTargetTime = null;
             ghostPlayback.skipGateOnce = false;
-            ghostPlayback.segmentReady = true;
             ghostPlayback.waitingForPlayerTeleport = false;
             const s0 = ghostPlayback.samples[0];
             players.P2.x = s0[1];
@@ -2302,7 +1662,7 @@ function checkTriggers(p, now, pName) {
         // session best
         if (p.bestLap === null || lapTime < p.bestLap) p.bestLap = lapTime;
 
-        const saved = saveBestLapIfBetter(lapTime);
+        saveBestLapIfBetter(lapTime);
 
         // ✅ save ghost (incl. gates) + stop recording
         if (pName === "P1") {
@@ -2313,11 +1673,7 @@ function checkTriggers(p, now, pName) {
           if (segs.length >= 2 && gates[segs.length - 1] == null) {
             gates[segs.length - 1] = +finalT.toFixed(3);
           }
-          console.log("ghost samples len", ghostRecord.samples.length);
-          console.log("ghost returnToStartT", ghostRecord.returnToStartT);
-          console.log("ghost last sample t", ghostRecord.samples.at(-1)?.t);
-          console.log("lapTime", lapTime);
-          const updated = upsertMedalGhost(
+          upsertMedalGhost(
             state.currentLevel,
             "best",
             lapTime,
@@ -2360,7 +1716,6 @@ function checkTriggers(p, now, pName) {
         resetCheckpointsForPlayer(p.lane, pName);
         // ✅ re-arm minigame trigger
         p.lastTile = null;
-        console.log(`🔁 ${pName} start lap ${p.lap}`);
         return;
       }
     }
@@ -2375,7 +1730,6 @@ function checkTriggers(p, now, pName) {
     const nextTile = tileAt(tx + 1, ty);
     if (["B", "J", "L"].includes(nextTile)) {
       startMinigame(pName, nextTile);
-
       // lock until you leave '>'
       p.lastTile = ">";
       return;
@@ -2386,7 +1740,6 @@ function checkTriggers(p, now, pName) {
   // =======================
   if (tile === "M" && !state.teleporting) {
     state.teleporting = true;
-
     ghostPlayback.hidden = true;
     ghostPlayback.hardHideFrames = 3;
     ghostPlayback.justTeleported = true;
@@ -2402,7 +1755,6 @@ function checkTriggers(p, now, pName) {
     if (pName === "P1" && ghostRecord.active && p.runStart != null) {
       const tGate = +(now - p.runStart).toFixed(3);
       ghostRecord.gates.push(tGate);
-
       const lastIdx = Math.max(0, ghostRecord.samples.length - 1);
       ghostRecord.gateIndices.push(lastIdx);
     }
@@ -2492,7 +1844,6 @@ function checkTriggers(p, now, pName) {
     if (ghostPlayback.active) {
       ghostPlayback.segmentCursor =
       levels[state.currentLevel].indexOf(state.currentTable);
-
       ghostPlayback.waitingForPlayerTeleport = false;
     }
     // ===== After teleport: ghost visueel plaatsen =====
@@ -2501,14 +1852,11 @@ function checkTriggers(p, now, pName) {
       (players.P1.runStart != null)
       ? ((performance.now() / 1000) - players.P1.runStart)
       : 0;
-
       const ghostTotal =
       ghostPlayback.duration ||
       (ghostPlayback.samples.at(-1)?.[0] ?? 0);
-
       if (goingBackToFirst) {
         const sTile = findPercentSpawnForLane("2");
-
         if (p1LapT < ghostTotal) {
           ghostPlayback.paused = true;
           ghostPlayback.hidden = false;
@@ -2521,7 +1869,6 @@ function checkTriggers(p, now, pName) {
           } else {
             setGhostPoseAtTime(players.P2, 0);
           }
-
           ghostPlayback.clock = 0;
           ghostPlayback.paused = true;
           ghostPlayback.resumeRequested = false;
@@ -2537,7 +1884,6 @@ function checkTriggers(p, now, pName) {
         // ook hier NIET manueel tonen tijdens resume
         ghostPlayback.paused = true;
         ghostPlayback.hidden = true;
-
       }
     }
     players.P1.lastTile = null;
@@ -2553,18 +1899,14 @@ function checkTriggers(p, now, pName) {
     });
     return;
   }
-
-  // ✅ single place at end
   p.lastTile = tile;
 } // einde checkTriggers
-
 function resetCheckpointsForPlayer(lane, pName) {
   const cps = state.activeTrack.checkpoints?.[lane] || [];
   cps.forEach(cp => {
     cp.hitByPlayer.delete(pName);
   });
 }
-
 //function walableTile
 function walkableTile(p, x, y) {
   const tx = Math.floor(x);
@@ -2581,15 +1923,12 @@ function walkableTile(p, x, y) {
     (t === "2" && p.lane !== "2") ||
     (t === "H" && p.lane !== "1") ||
     (t === "Y" && p.lane !== "2")) return false;
-
   return true;
 }
 function isCheckpointTileActive(x, y, lane) {
   if (!state.activeTrack || !state.activeTrack.checkpoints) return false;
-
   const cps = state.activeTrack.checkpoints[lane] || [];
   const key = `${x},${y}`;
-
   return cps.some(
     cp => cp.tileSet.has(key) && cp.hitByPlayer.size > 0
   );
@@ -2633,10 +1972,8 @@ function drawTrack() {
 function drawPlayers() {
   for (const [key, p] of Object.entries(players)) {
     if (key === "P2" && !shouldDrawGhostNow()) continue;
-
     const sprite = carSprites[key];
     if (!sprite.complete) continue;
-
     const size = CONFIG.TILE_SIZE * 2;
     ctx.save();
     ctx.translate(p.x * CONFIG.TILE_SIZE, p.y * CONFIG.TILE_SIZE);
@@ -2645,34 +1982,23 @@ function drawPlayers() {
     ctx.restore();
   }
 }
-
-
 function fmt(t){
   return t!=null?t.toFixed(2)+"s":"--";
 }
-
-
 function showWinner() {
   dom.overlay.style.display = "flex";
-  const nameP1 = (dom.nameP1?.value || "P1");
-  const nameP2 = (dom.nameP2?.value || "P2");
-  const p1Time = players.P1.finishTime ?? Infinity;
-  const p2Time = players.P2.finishTime ?? Infinity;
-  let winnerName = "TIE";
-  let winnerPlayer = players.P1;
-  if (p1Time < p2Time) { winnerName = nameP1; winnerPlayer = players.P1; }
-  else if (p2Time < p1Time) { winnerName = nameP2; winnerPlayer = players.P2; }
-  // All-time best (zonder datum)
+
+  const nameP1 = dom.nameP1?.value || "P1";
   const best = loadBestLap();
   const allTimeBest = best?.time ?? null;
-  // Best time now = beste lap van deze race
-  const bestNow = winnerPlayer.bestLap;
-  // Lap lines (flexibel aantal)
-  const lapLines = (winnerPlayer.lapTimes || [])
-  .map((t, i) => `<div>Lap${i + 1}: ${formatTime(t)}</div>`)
+  const bestNow = players.P1.bestLap;
+
+  const lapLines = (players.P1.lapTimes || [])
+  .map((t, i) => `<div>Lap ${i + 1}: ${formatTime(t)}</div>`)
   .join("");
+
   dom.winnerText.innerHTML = `
-  <div>${winnerName} Wins!</div>
+  <div>${nameP1} Finished!</div>
   <div>All-time Best: ${allTimeBest ? formatTime(allTimeBest) : "--"}</div>
   <div>Best time now: ${bestNow ? formatTime(bestNow) : "--"}</div>
   <div style="margin-top:10px;">${lapLines || "<div>No laps recorded</div>"}</div>
@@ -2688,20 +2014,15 @@ function formatTime(seconds) {
 function drawHUD() {
   const laps = parseInt(dom.lapInput.value, 10);
   const now = performance.now() / 1000;
-  // P1 stats
+
   const p1 = players.P1;
   const p1Stats = [];
   p1Stats.push(`Lap: ${p1.lap}/${laps}`);
   p1Stats.push(`Best: ${fmt(p1.bestLap)}`);
   if (p1.started) p1Stats.push(`Current: ${fmt(now - p1.lapStart)}`);
+
   dom.statsP1.textContent = p1Stats.join(" | ");
-  // P2 stats
-  const p2 = players.P2;
-  const p2Stats = [];
-  p2Stats.push(`Lap: ${p2.lap}/${laps}`);
-  p2Stats.push(`Best: ${fmt(p2.bestLap)}`);
-  if (p2.started) p2Stats.push(`Current: ${fmt(now - p2.lapStart)}`);
-  dom.statsP2.textContent = p2Stats.join(" | ");
+  dom.statsP2.textContent = "";
 }
 // === Loop ===
 let lastTime = performance.now();
@@ -2717,8 +2038,6 @@ function loop(now) {
     drawTrack();
     drawPlayers();
     drawHUD();
-    // Check game over
-    if(players.P1.finishTime && players.P2.finishTime) state.gameOver = true;
   }
   requestAnimationFrame(loop);
 }
@@ -2730,7 +2049,6 @@ const lapInput = dom.lapInput;
 // Load saved names
 const savedP1 = localStorage.getItem("circuitracer_name_p1");
 const savedP2 = localStorage.getItem("circuitracer_name_p2");
-const savedLaps = localStorage.getItem("circuitracer_laps");
 if (savedP1) nameInputP1.value = savedP1;
 if (savedP2) nameInputP2.value = savedP2;
 nameInputP1.addEventListener("input", () => {
