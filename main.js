@@ -1,4 +1,4 @@
-// main.js
+ // main.js
 import { tracks } from './trackbuilder.js';
 export const levels = {
   LVL1: ['LVL1'],
@@ -119,7 +119,7 @@ const players = {
     runStart:null
   },
   P2: {
-    lane:"2",
+    lane:"1",
     x:0,
     y:0,
     angle:0
@@ -161,12 +161,26 @@ const carSprites = {
 };
 carSprites.P1.src = "icons/1.png";
 carSprites.P2.src = "icons/2.png";
+
+
+let trackCacheCanvas = null;
+let trackCacheCtx = null;
+let trackCacheKey = "";
+
+
 //--------------------
 //FUNCTIONSSSSSS
 //---------------------
 
 
 
+
+
+function invalidateTrackCache() {
+  trackCacheCanvas = null;
+  trackCacheCtx = null;
+  trackCacheKey = "";
+}
 
 function resetPlayerForStart(player, x, y, extra = {}) {
   Object.assign(player, {
@@ -175,6 +189,14 @@ function resetPlayerForStart(player, x, y, extra = {}) {
     angle: Math.PI / 2,
     ...extra
   });
+  ghostPlayback.sampleCursor = 0;
+}
+
+function drawTrack() {
+  drawTrackToCache();
+  if (trackCacheCanvas) {
+    ctx.drawImage(trackCacheCanvas, 0, 0);
+  }
 }
 
 function resetGhostPlayback(overrides = {}) {
@@ -207,7 +229,9 @@ function createGhostPlaybackState() {
     hidden: false,
     hardHideFrames: 0,
     poseLock: false,
+    sampleCursor: 0,
     justTeleported: false
+
   };
 }
 function createGhostRecordState() {
@@ -338,8 +362,13 @@ function setGhostPoseAtTime(p2, t) {
     p2.x = last[1]; p2.y = last[2]; p2.angle = last[3];
     return;
   }
-  let i = 0;
-  while (i < samples.length - 1 && samples[i + 1][0] < t) i++;
+  let i = ghostPlayback.sampleCursor || 0;
+  if (samples[i]?.[0] > t) i = 0;
+  while (i < samples.length - 1 && samples[i + 1][0] < t) {
+    i++;
+  }
+
+  ghostPlayback.sampleCursor = i;
   const a = samples[i], b = samples[i + 1];
   const tA = a[0], tB = b[0];
   const u = (t - tA) / Math.max(0.0001, (tB - tA));
@@ -445,7 +474,7 @@ function updateGhost(p2, dt) {
   const prevT = ghostPlayback.clock;
   const nextT = prevT + dt;
   // =========================================
-  // RETURNING TO START
+  // Terug naar start
   // =========================================
   if (ghostPlayback.returningToStart) {
     ghostPlayback.clock = nextT;
@@ -528,6 +557,7 @@ function updateGhost(p2, dt) {
   ghostPlayback.skipGateOnce = false;
   ghostPlayback.clock = nextT;
   const t = ghostPlayback.clock;
+
   if (t >= samples[samples.length - 1][0]) {
     const last = samples[samples.length - 1];
     p2.x = last[1];
@@ -536,22 +566,10 @@ function updateGhost(p2, dt) {
     ghostPlayback.hidden = false;
     return;
   }
-  let i = 0;
-  while (i < samples.length - 1 && samples[i + 1][0] < t) i++;
-  const a = samples[i];
-  const b = samples[i + 1];
-  const tA = a[0];
-  const tB = b[0];
-  const u = (t - tA) / Math.max(0.0001, (tB - tA));
-  const lerp = (v1, v2, uu) => v1 + (v2 - v1) * uu;
-  p2.x = lerp(a[1], b[1], u);
-  p2.y = lerp(a[2], b[2], u);
-  const angA = a[3];
-  const angB = b[3];
-  const d = Math.atan2(Math.sin(angB - angA), Math.cos(angB - angA));
-  p2.angle = angA + d * u;
+
+  setGhostPoseAtTime(p2, t);
   ghostPlayback.hidden = false;
-}
+  }
 function resetP1ForStart(x, y) {
   resetPlayerForStart(players.P1, x, y, {
     started: false,
@@ -772,9 +790,7 @@ function initStartScreen() {
     ui.statsMenu.style.display = "none";
     dom.trackMenu.style.display = "none";
 }
-// =====================
-// STATS RENDER (per LVL: best time + date)
-// =====================
+
 function readBestLapForTable(tableName) {
   try {
     const raw = localStorage.getItem(`circuitracer_bestlap_${tableName}`);
@@ -989,6 +1005,8 @@ function startTrack(levelName) {
     window.__gameLoopRunning = true;
     requestAnimationFrame(loop);
   }
+  invalidateTrackCache();
+
 }
 function buildTrackData(name, rawTrack) {
   const map = rawTrack.map.map(row => {
@@ -1018,6 +1036,7 @@ function selectTrack(name, level = null, customSpawn = {}, preservePlayerState =
   if (level) state.currentLevel = level;
   state.currentTable = name;
   initLevelCheckpoints(state.currentLevel);
+  invalidateTrackCache();
   const subIndex = levels[state.currentLevel].indexOf(name);
   if (subIndex === 0) {
     state.activeTrack.checkpoints = state.levelCheckpointState[state.currentLevel].persistent;
@@ -1124,50 +1143,75 @@ function initLevelCheckpoints(level) {
 }
 function resizeCanvas() {
   if (!state.track) return;
+
   const gameWidth  = state.track[0].length * CONFIG.TILE_SIZE;
   const gameHeight = state.track.length * CONFIG.TILE_SIZE;
+
   canvas.width  = gameWidth;
   canvas.height = gameHeight;
+
+  invalidateTrackCache();
+
   const wrapper = dom.gameWrapper;
   const vw = window.innerWidth;
-  const vh = wrapper.clientHeight;
+  const vh = wrapper.clientHeight || window.innerHeight;
+
   const scale = Math.min(vw / gameWidth, vh / gameHeight);
-  canvas.style.width  = (gameWidth  * scale) + "px";
+
+  canvas.style.width  = (gameWidth * scale) + "px";
   canvas.style.height = (gameHeight * scale) + "px";
+
   positionMinigamePanel("P1");
 }
+
 window.addEventListener("resize", checkOrientation);
+
 window.addEventListener("orientationchange", checkOrientation);
+
 function tileAt(x, y) {
   const t = state.track;
   if (t?.[y]?.[x] !== undefined) return t[y][x];
   return null;
 }
+
 function startMinigame(pName, tileChar) {
   pName = "P1";
+
   const mgType = MINIGAME_MAPPING[tileChar];
   if (!mgType || players.P1.inMinigame) return;
+
   players.P1.inMinigame = true;
   players.P1.minigameCooldown = true;
   dom.minigameOverlay.style.display = "flex";
+
   const callback = () => {
     const p = players.P1;
     p.minigameCooldownUntil = performance.now() + 350;
+
     const exit = findExitForLane(p.lane);
     if (exit) {
       p.x = exit.x + 0.5;
       p.y = exit.y + 0.5;
     }
+
     dom.minigameOverlay.style.display = "none";
     p.inMinigame = false;
     p.minigameCooldown = false;
   };
+
   switch (mgType) {
-    case "balance": startBalanceMinigame("P1", callback); break;
-    case "looping": startLoopingMinigame("P1", callback); break;
-    case "jump":    startJumpMinigame("P1", callback); break;
+    case "balance":
+      startBalanceMinigame("P1", callback);
+      break;
+    case "looping":
+      startLoopingMinigame("P1", callback);
+      break;
+    case "jump":
+      startJumpMinigame("P1", callback);
+      break;
   }
 }
+
 //-----------------------MINIGAME Functies------------------------------
 function startBalanceMinigame(pName, callback){
   const mg = minigameState[pName];
@@ -1492,8 +1536,13 @@ const sticks = {
 };
 function setupStick(stickId, player){
   const stick = document.getElementById(stickId);
+  if (!stick) return;
+
   const knob = stick.querySelector(".knob");
+  if (!knob) return;
+
   const radius = 50;
+
   function start(e){
     e.preventDefault();
     move(e);
@@ -1912,63 +1961,104 @@ function walkableTile(p, x, y) {
   const tx = Math.floor(x);
   const ty = Math.floor(y);
   const t = tileAt(tx, ty);
-  if (!t) return false; // buiten de track
-  if (["|","G","="].includes(t)) return false;
-  // start, finish en checkpoints altijd toegankelijk
-  if (["S","C","%","P"].includes(t)) return true;
-  // minigame triggers
-  if (["B","J","L"].includes(t)) return true;
-  // lane-restricties
-  if ((t === "1" && p.lane !== "1") ||
-    (t === "2" && p.lane !== "2") ||
-    (t === "H" && p.lane !== "1") ||
-    (t === "Y" && p.lane !== "2")) return false;
+
+  if (!t) return false;
+  if (["|", "G",].includes(t)) return false;
+
+  if (["S", "C","=", "%", "P", "1", "2", "B", "J", "L"].includes(t)) {
+    return true;
+  }
+
+  if (t === "H") {
+    return p === players.P1 || p.lane === "1";
+  }
+
+  if (t === "Y") {
+    return p === players.P1 || p.lane === "2";
+  }
+
   return true;
 }
-function isCheckpointTileActive(x, y, lane) {
-  if (!state.activeTrack || !state.activeTrack.checkpoints) return false;
-  const cps = state.activeTrack.checkpoints[lane] || [];
-  const key = `${x},${y}`;
-  return cps.some(
-    cp => cp.tileSet.has(key) && cp.hitByPlayer.size > 0
-  );
+
+function drawActiveCheckpoints() {
+  if (!state.activeTrack?.checkpoints) return;
+
+  for (const lane of ["1", "2"]) {
+    for (const cp of state.activeTrack.checkpoints[lane] || []) {
+      if (!cp.hitByPlayer?.size) continue;
+
+      for (const pos of cp.tileSet) {
+        const [x, y] = pos.split(",").map(Number);
+        ctx.fillStyle = "green";
+        ctx.fillRect(
+          x * CONFIG.TILE_SIZE,
+          y * CONFIG.TILE_SIZE,
+          CONFIG.TILE_SIZE,
+          CONFIG.TILE_SIZE
+        );
+      }
+    }
+  }
 }
+
+
 // === Tekenen ===
-function drawTrack() {
+
+function drawTrackToCache() {
+  if (!state.track) return;
+
+  const key = state.currentTable + "_" + canvas.width + "x" + canvas.height;
+
+  if (trackCacheCanvas && trackCacheKey === key) return;
+
+  trackCacheKey = key;
+  trackCacheCanvas = document.createElement("canvas");
+  trackCacheCanvas.width = canvas.width;
+  trackCacheCanvas.height = canvas.height;
+  trackCacheCtx = trackCacheCanvas.getContext("2d");
+
   for (let y = 0; y < state.track.length; y++) {
     for (let x = 0; x < state.track[y].length; x++) {
       const tile = state.track[y][x];
       let color;
-      if (tile === "S") color = "white";       // start = wit
-      else if (tile === ">") color = "#ff9900"; // trigger = geel-oranje
-      else if (tile === "<") color = "#39ff14"; // exit = neon groen
+
+      if (tile === "S") color = "white";
+      else if (tile === ">") color = "#ff9900";
+      else if (tile === "<") color = "#39ff14";
       else {
-        switch(tile) {
+        switch (tile) {
           case "|": color = "#b30000"; break;
-          case "1": case "2": color = "#555"; break;
+          case "1":
+          case "2": color = "#555"; break;
           case "=": color = "#777"; break;
           case "G": color = "green"; break;
-          case "C":
-            const lane1Active = isCheckpointTileActive(x, y, "1");
-            const lane2Active = isCheckpointTileActive(x, y, "2");
-            color = (lane1Active || lane2Active) ? "green" : "purple";
-            break;
-          case "N": color = "black"; break;
+          case "C": color = "purple"; break;
           case "Y": color = "red"; break;
-          case "*": case "%": color = "white"; break;
+          case "*": color = "white"; break;
+          case "%": color = "#555"; break;
           case "H": color = "cyan"; break;
-          case "B": color = "#C4A484"; break;   // balance
-          case "O":  color = "#5C4033"; break;   // balance
-          case "L": color = "red"; break;    // looping
-          case "J": color = "purple"; break; // jump
+          case "N": color = "black"; break;
+          case "P": color = "#555"; break;
+          case "M": color = "#555"; break;
+          case "B": color = "#C4A484"; break;
+          case "O": color = "#5C4033"; break;
+          case "L": color = "red"; break;
+          case "J": color = "purple"; break;
           default: color = "#777";
         }
       }
-      ctx.fillStyle = color;
-      ctx.fillRect(x * CONFIG.TILE_SIZE, y * CONFIG.TILE_SIZE, CONFIG.TILE_SIZE, CONFIG.TILE_SIZE);
+
+      trackCacheCtx.fillStyle = color;
+      trackCacheCtx.fillRect(
+        x * CONFIG.TILE_SIZE,
+        y * CONFIG.TILE_SIZE,
+        CONFIG.TILE_SIZE,
+        CONFIG.TILE_SIZE
+      );
     }
   }
 }
+
 function drawPlayers() {
   for (const [key, p] of Object.entries(players)) {
     if (key === "P2" && !shouldDrawGhostNow()) continue;
@@ -2019,30 +2109,36 @@ function drawHUD() {
   const p1Stats = [];
   p1Stats.push(`Lap: ${p1.lap}/${laps}`);
   p1Stats.push(`Best: ${fmt(p1.bestLap)}`);
-  if (p1.started) p1Stats.push(`Current: ${fmt(now - p1.lapStart)}`);
+  if (p1.started && p1.runStart != null) {
+    p1Stats.push(`Current: ${fmt(now - p1.runStart)}`);
+  }
 
   dom.statsP1.textContent = p1Stats.join(" | ");
   dom.statsP2.textContent = "";
 }
 // === Loop ===
 let lastTime = performance.now();
+
 function loop(now) {
-  const dt = (now - lastTime) / 1000;
+  const dt = Math.min(0.033, (now - lastTime) / 1000);
   lastTime = now;
+
   if (!state.gameOver) {
-    // Update spelers
     updatePlayer(players.P1, dt);
     updateGhost(players.P2, dt);
-    // Teken alles
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawTrack();
+    drawActiveCheckpoints();
     drawPlayers();
     drawHUD();
   }
+
   requestAnimationFrame(loop);
 }
+
 lastTime = performance.now();
-/* === PLAYER NAME PERSISTENCE === */
+/* === PLAYER NAME  houden === */
 const nameInputP1 = dom.nameP1;
 const nameInputP2 = dom.nameP2;
 const lapInput = dom.lapInput;
